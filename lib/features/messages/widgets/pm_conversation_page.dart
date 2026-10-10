@@ -321,6 +321,7 @@ class _PmConversationPageState extends State<PmConversationPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: Row(
           children: [
             Flexible(

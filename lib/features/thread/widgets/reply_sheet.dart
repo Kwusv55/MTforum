@@ -60,9 +60,8 @@ class _ReplySheetState extends State<_ReplySheet> {
 
     final value = _controller.value;
     final selection = value.selection;
-    final hasSelection = selection.isValid &&
-        selection.start >= 0 &&
-        selection.end >= 0;
+    final hasSelection =
+        selection.isValid && selection.start >= 0 && selection.end >= 0;
 
     final start = hasSelection ? selection.start : value.text.length;
     final end = hasSelection ? selection.end : start;
@@ -180,143 +179,149 @@ class _ReplySheetState extends State<_ReplySheet> {
     final colors = theme.colorScheme;
     final media = MediaQuery.of(context);
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: media.size.height * 0.82,
-          ),
-          child: Material(
-            color: colors.surface,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.replyToName != null
-                              ? '回复 @${widget.replyToName}'
-                              : '回复帖子',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+    return LiquidGlass(
+      borderRadius: _glassSheetRadius,
+      edge: GlassEdge.top,
+      opacityBoost: 0.14,
+      fallbackColor: colors.surface,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: media.size.height * 0.82,
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _GlassSheetHandle(),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.replyToName != null
+                                ? '回复 @${widget.replyToName}'
+                                : '回复帖子',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: '关闭',
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    minLines: 1,
-                    maxLines: 8,
-                    autofocus: true,
-                    onTap: _hideSmileysForKeyboard,
-                    decoration: InputDecoration(
-                      hintText: widget.replyToName != null
-                          ? '回复 @${widget.replyToName}...'
-                          : '输入回复内容...',
-                      filled: true,
-                      fillColor: colors.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
+                        IconButton(
+                          tooltip: '关闭',
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      minLines: 1,
+                      maxLines: 8,
+                      autofocus: true,
+                      onTap: _hideSmileysForKeyboard,
+                      decoration: InputDecoration(
+                        hintText: widget.replyToName != null
+                            ? '回复 @${widget.replyToName}...'
+                            : '输入回复内容...',
+                        filled: true,
+                        fillColor: colors.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      IconButton.filledTonal(
-                        tooltip: '表情',
-                        isSelected: _showSmileys,
-                        onPressed: _toggleSmileys,
-                        icon: Icon(
-                          _showSmileys
-                              ? Icons.keyboard_rounded
-                              : Icons.sentiment_satisfied_alt_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filledTonal(
-                        tooltip: _replyAttachments.isEmpty
-                            ? '添加图片'
-                            : '已添加 ${_replyAttachments.length} 张图片',
-                        onPressed:
-                            _sending || _uploadingImage ? null : _pickImage,
-                        icon: _uploadingImage
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Badge(
-                                isLabelVisible: _replyAttachments.isNotEmpty,
-                                label: Text('${_replyAttachments.length}'),
-                                child: const Icon(Icons.image_outlined),
-                              ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _showSmileys
-                              ? '点击表情插入到当前光标位置'
-                              : '支持 QQ / COMCOM 表情',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.outline,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        IconButton.filledTonal(
+                          tooltip: '表情',
+                          isSelected: _showSmileys,
+                          onPressed: _toggleSmileys,
+                          icon: Icon(
+                            _showSmileys
+                                ? Icons.keyboard_rounded
+                                : Icons.sentiment_satisfied_alt_rounded,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed:
-                            _sending || _uploadingImage ? null : _send,
-                        icon: _sending
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          tooltip: _replyAttachments.isEmpty
+                              ? '添加图片'
+                              : '已添加 ${_replyAttachments.length} 张图片',
+                          onPressed:
+                              _sending || _uploadingImage ? null : _pickImage,
+                          icon: _uploadingImage
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Badge(
+                                  isLabelVisible: _replyAttachments.isNotEmpty,
+                                  label: Text('${_replyAttachments.length}'),
+                                  child: const Icon(Icons.image_outlined),
                                 ),
-                              )
-                            : const Icon(Icons.send_rounded, size: 18),
-                        label: const Text('发送'),
-                      ),
-                    ],
-                  ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    child: _showSmileys
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: SizedBox(
-                              height: 286,
-                              child: _SmileyPicker(
-                                onSelected: _insertSmiley,
-                              ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _showSmileys
+                                ? '点击表情插入到当前光标位置'
+                                : '支持 QQ / COMCOM 表情',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.outline,
                             ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: _sending || _uploadingImage ? null : _send,
+                          icon: _sending
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded, size: 18),
+                          label: const Text('发送'),
+                        ),
+                      ],
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: _showSmileys
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: SizedBox(
+                                height: 286,
+                                child: _SmileyPicker(
+                                  onSelected: _insertSmiley,
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

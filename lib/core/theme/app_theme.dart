@@ -6,6 +6,8 @@ import 'app_motion.dart';
 import 'app_radius.dart';
 import 'app_spacing.dart';
 import 'app_typography.dart';
+import 'glass_style.dart';
+import 'wallpapers.dart';
 
 /// MTForum 全局 Material Design 3 主题。
 ///
@@ -19,18 +21,56 @@ import 'app_typography.dart';
 /// BottomSheet、FilledButton、OutlinedButton、TextField、SearchBar、
 /// Chip、Switch、SnackBar、TabBar、FAB、Menu、Tooltip。
 abstract final class AppTheme {
-  static ThemeData light({String? fontFamily}) =>
-      _build(Brightness.light, fontFamily: fontFamily);
+  static ThemeData light({
+    String? fontFamily,
+    bool glass = false,
+    String? wallpaperId,
+    double wallpaperDim = 0.35,
+  }) =>
+      _build(
+        Brightness.light,
+        fontFamily: fontFamily,
+        glass: glass,
+        wallpaperId: wallpaperId,
+        wallpaperDim: wallpaperDim,
+      );
 
-  static ThemeData dark({String? fontFamily}) =>
-      _build(Brightness.dark, fontFamily: fontFamily);
+  static ThemeData dark({
+    String? fontFamily,
+    bool glass = false,
+    String? wallpaperId,
+    double wallpaperDim = 0.35,
+  }) =>
+      _build(
+        Brightness.dark,
+        fontFamily: fontFamily,
+        glass: glass,
+        wallpaperId: wallpaperId,
+        wallpaperDim: wallpaperDim,
+      );
 
-  static ThemeData _build(Brightness brightness, {String? fontFamily}) {
+  static ThemeData _build(
+    Brightness brightness, {
+    String? fontFamily,
+    bool glass = false,
+    String? wallpaperId,
+    double wallpaperDim = 0.35,
+  }) {
     final isDark = brightness == Brightness.dark;
-    final scheme =
-        isDark ? AppColors.dark() : AppColors.light();
+    final scheme = isDark ? AppColors.dark() : AppColors.light();
     final textTheme = AppTypography.textTheme(scheme);
-    final outline = scheme.outlineVariant.withValues(alpha: isDark ? 0.6 : 0.85);
+    final outline =
+        scheme.outlineVariant.withValues(alpha: isDark ? 0.6 : 0.85);
+    final hasWallpaper = wallpaperId != null;
+    final glassStyle = GlassStyle(
+      enabled: glass,
+      blurSigma: 22,
+      tint: isDark ? scheme.surfaceContainer : scheme.surface,
+      tintOpacity: isDark ? 0.62 : 0.66,
+      highlight: Colors.white.withValues(alpha: isDark ? 0.20 : 0.85),
+      wallpaperId: wallpaperId,
+      wallpaperDim: wallpaperDim,
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -38,7 +78,10 @@ abstract final class AppTheme {
       colorScheme: scheme,
       fontFamily: fontFamily,
       textTheme: textTheme,
-      scaffoldBackgroundColor: scheme.surface,
+      // 有壁纸时页面背景透明，由 [WallpaperBackdrop] 在每个路由下方铺壁纸。
+      scaffoldBackgroundColor:
+          hasWallpaper ? Colors.transparent : scheme.surface,
+      extensions: [glassStyle],
       canvasColor: scheme.surface,
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -58,7 +101,8 @@ abstract final class AppTheme {
         centerTitle: false,
         elevation: AppElevation.flat,
         scrolledUnderElevation: AppElevation.flat,
-        backgroundColor: scheme.surface,
+        // 玻璃模式下顶栏背景由 flexibleSpace 里的 [GlassAppBarBackground] 绘制。
+        backgroundColor: glass ? Colors.transparent : scheme.surface,
         foregroundColor: scheme.onSurface,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: textTheme.titleLarge,
@@ -69,10 +113,12 @@ abstract final class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 68,
         elevation: AppElevation.flat,
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor:
+            glass ? Colors.transparent : scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primaryContainer,
-        indicatorShape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
+        indicatorShape:
+            const RoundedRectangleBorder(borderRadius: AppRadius.pill),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
@@ -98,7 +144,8 @@ abstract final class AppTheme {
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: scheme.surfaceContainerLow,
         indicatorColor: scheme.primaryContainer,
-        indicatorShape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
+        indicatorShape:
+            const RoundedRectangleBorder(borderRadius: AppRadius.pill),
         selectedIconTheme: IconThemeData(color: scheme.onPrimaryContainer),
         unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
         selectedLabelTextStyle: textTheme.labelLarge,
@@ -120,7 +167,10 @@ abstract final class AppTheme {
       // ---------- 容器 ----------
       cardTheme: CardThemeData(
         elevation: AppElevation.flat,
-        color: scheme.surfaceContainerLow,
+        // 有壁纸时卡片略微透出底色，文字可读性仍由高不透明度保证。
+        color: hasWallpaper
+            ? scheme.surfaceContainerLow.withValues(alpha: 0.88)
+            : scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
@@ -444,7 +494,8 @@ class HorizontalSlidePageTransitionsBuilder extends PageTransitionsBuilder {
         child: SlideTransition(
           position: incoming,
           transformHitTests: false,
-          child: child,
+          // 每个页面自带一层壁纸，切换时新页面不会透出下面的旧页面。
+          child: WallpaperBackdrop(child: child),
         ),
       ),
     );

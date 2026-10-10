@@ -9,6 +9,7 @@ import 'signature_profile_page.dart';
 import 'sms_settings_page.dart';
 import 'user_group_page.dart';
 import 'wall_page.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class AccountToolsPage extends StatelessWidget {
   final String uid;
@@ -42,7 +43,10 @@ class AccountToolsPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('账号工具')),
+      appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
+        title: const Text('账号工具'),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
         children: [

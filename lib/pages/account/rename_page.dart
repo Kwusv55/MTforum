@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class RenamePage extends StatefulWidget {
   const RenamePage({super.key});
@@ -44,6 +45,7 @@ class _RenamePageState extends State<RenamePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('改名'),
         actions: [
           IconButton(

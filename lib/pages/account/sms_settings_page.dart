@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class SmsSettingsPage extends StatefulWidget {
   const SmsSettingsPage({super.key});
@@ -153,6 +154,7 @@ class _SmsSettingsPageState extends State<SmsSettingsPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('短信与手机'),
         actions: [
           IconButton(

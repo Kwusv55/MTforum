@@ -5,6 +5,7 @@ import '../services/message_badge_service.dart';
 import 'account/private_messages_page.dart';
 import 'account/social_center_page.dart';
 import 'notice_page.dart';
+import '../core/widgets/liquid_glass.dart';
 
 /// 消息中心：论坛通知、私信、好友申请统一入口。
 class MessagesPage extends StatefulWidget {
@@ -88,6 +89,7 @@ class _MessagesPageState extends State<MessagesPage> {
               slivers: [
                 SliverAppBar.large(
                   title: const Text('消息'),
+                  flexibleSpace: GlassAppBarBackground.large(title: const Text('消息')),
                   pinned: true,
                   actions: [
                     IconButton(
@@ -119,7 +121,13 @@ class _MessagesPageState extends State<MessagesPage> {
                   ],
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                  // 玻璃模式下底栏悬浮在内容上，底部留出底栏高度。
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    4,
+                    16,
+                    28 + MediaQuery.paddingOf(context).bottom,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       _MessageEntryCard(

@@ -15,12 +15,26 @@ class ThemeService extends ChangeNotifier {
   static const _customFontPathKey = 'custom_font_path';
   static const _customFontNameKey = 'custom_font_name';
   static const _customFontFamilyKey = 'custom_font_family';
+  static const _glassEnabledKey = 'glass_enabled';
+  static const _wallpaperKey = 'wallpaper_id';
+  static const _wallpaperDimKey = 'wallpaper_dim';
+  static const _customWallpapersKey = 'custom_wallpapers';
+
+  /// 壁纸 id 前缀：内置渐变壁纸 / 用户导入的图片。
+  static const presetWallpaperPrefix = 'preset:';
+  static const fileWallpaperPrefix = 'file:';
+
+  static const _maxCustomWallpapers = 12;
 
   ThemeMode _mode = ThemeMode.system;
   double _textScale = 1.0;
   String? _customFontPath;
   String? _customFontName;
   String? _customFontFamily;
+  bool _glassEnabled = true;
+  String? _wallpaperId;
+  double _wallpaperDim = 0.35;
+  List<String> _customWallpapers = const [];
 
   ThemeMode get mode => _mode;
   bool get isDark => _mode == ThemeMode.dark;
@@ -28,6 +42,19 @@ class ThemeService extends ChangeNotifier {
   bool get hasCustomFont => _customFontFamily != null;
   String? get customFontName => _customFontName;
   String? get customFontFamily => _customFontFamily;
+
+  /// 顶栏 / 底栏 / 评论区是否使用液态玻璃（背景模糊）效果。
+  bool get glassEnabled => _glassEnabled;
+
+  /// 当前壁纸：`null` 表示不使用壁纸，否则为 `preset:<id>` 或 `file:<path>`。
+  String? get wallpaperId => _wallpaperId;
+  bool get hasWallpaper => _wallpaperId != null;
+
+  /// 壁纸上叠加的表面色遮罩不透明度，保证文字可读。
+  double get wallpaperDim => _wallpaperDim;
+
+  /// 用户导入过的壁纸图片路径（最新的在前）。
+  List<String> get customWallpapers => _customWallpapers;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -45,6 +72,23 @@ class ThemeService extends ChangeNotifier {
         break;
       default:
         _mode = ThemeMode.system;
+    }
+
+    _glassEnabled = prefs.getBool(_glassEnabledKey) ?? true;
+    _wallpaperDim =
+        (prefs.getDouble(_wallpaperDimKey) ?? _wallpaperDim).clamp(0.0, 0.85);
+    final customWallpapers = <String>[];
+    for (final path in prefs.getStringList(_customWallpapersKey) ?? const []) {
+      if (await File(path).exists()) customWallpapers.add(path);
+    }
+    _customWallpapers = List.unmodifiable(customWallpapers);
+    final wallpaper = prefs.getString(_wallpaperKey);
+    if (wallpaper != null &&
+        (!wallpaper.startsWith(fileWallpaperPrefix) ||
+            customWallpapers.contains(
+              wallpaper.substring(fileWallpaperPrefix.length),
+            ))) {
+      _wallpaperId = wallpaper;
     }
 
     final fontPath = prefs.getString(_customFontPathKey);
@@ -160,5 +204,96 @@ class ThemeService extends ChangeNotifier {
         ThemeMode.system => 'system',
       },
     );
+  }
+
+  Future<void> setGlassEnabled(bool value) async {
+    if (_glassEnabled == value) return;
+    _glassEnabled = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_glassEnabledKey, value);
+  }
+
+  Future<void> setWallpaper(String? id) async {
+    if (_wallpaperId == id) return;
+    _wallpaperId = id;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null) {
+      await prefs.remove(_wallpaperKey);
+    } else {
+      await prefs.setString(_wallpaperKey, id);
+    }
+  }
+
+  Future<void> setWallpaperDim(double value) async {
+    final next = value.clamp(0.0, 0.85).toDouble();
+    if ((_wallpaperDim - next).abs() < 0.001) return;
+    _wallpaperDim = next;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_wallpaperDimKey, next);
+  }
+
+  /// 把用户选的图片复制到应用私有目录并设为当前壁纸。
+  Future<void> addCustomWallpaper(Uint8List bytes, String fileName) async {
+    if (bytes.isEmpty) throw const FormatException('图片文件为空');
+    final dot = fileName.lastIndexOf('.');
+    var extension = dot < 0 ? 'jpg' : fileName.substring(dot + 1).toLowerCase();
+    if (!const {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif'}
+        .contains(extension)) {
+      extension = 'jpg';
+    }
+
+    final directory = Directory(
+      '${(await getApplicationSupportDirectory()).path}/wallpapers',
+    );
+    await directory.create(recursive: true);
+    final file = File(
+      '${directory.path}/wallpaper_${DateTime.now().microsecondsSinceEpoch}.$extension',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+
+    final next = [file.path, ..._customWallpapers];
+    final overflow = next.length > _maxCustomWallpapers
+        ? next.sublist(_maxCustomWallpapers)
+        : const <String>[];
+    _customWallpapers = List.unmodifiable(next.take(_maxCustomWallpapers));
+    _wallpaperId = '$fileWallpaperPrefix${file.path}';
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_customWallpapersKey, _customWallpapers);
+    await prefs.setString(_wallpaperKey, _wallpaperId!);
+    for (final path in overflow) {
+      await _deleteQuietly(path);
+    }
+  }
+
+  Future<void> removeCustomWallpaper(String path) async {
+    if (!_customWallpapers.contains(path)) return;
+    _customWallpapers = List.unmodifiable(
+      _customWallpapers.where((item) => item != path),
+    );
+    final wasCurrent = _wallpaperId == '$fileWallpaperPrefix$path';
+    if (wasCurrent) _wallpaperId = null;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_customWallpapersKey, _customWallpapers);
+    if (wasCurrent) await prefs.remove(_wallpaperKey);
+    // 先让界面不再引用这张图，再删文件，避免正在显示的图片读到空文件。
+    imageCache.clear();
+    await _deleteQuietly(path);
+  }
+
+  Future<void> _deleteQuietly(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
   }
 }

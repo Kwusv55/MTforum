@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
 import '../widgets/bbcode_preview.dart';
+import '../core/widgets/liquid_glass.dart';
 
 part '../features/thread/editor/editor_panels.dart';
 part '../features/thread/editor/editor_insert_panel.dart';
@@ -638,6 +639,7 @@ class _ThreadEditorPageState extends State<ThreadEditorPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: Text(title),
         actions: [
           IconButton(

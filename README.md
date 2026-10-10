@@ -2,6 +2,8 @@
 
 MT管理器论坛 (bbs.binmt.cc) 第三方客户端，基于 Flutter + Material Design 3。
 
+原开发者已停更，本仓库为接手后的维护版本。
+
 ## 快速开始
 
 ```bash
@@ -15,14 +17,6 @@ flutter run
 flutter build apk --release
 ```
 
-更新源地址已内置默认值（`lib/services/update_service.dart` 的
-`MTFORUM_UPDATE_URL` 默认指向 `https://loveqin.fun/Mt/update.json`），
-所以不带任何 `--dart-define` 构建也自带更新能力。只有要指向测试环境时才需要：
-
-```bash
-flutter build apk --release --dart-define=MTFORUM_UPDATE_URL=https://example.com/Mt/update.json
-```
-
 > Release 签名读取仓库根目录的 `key.properties`。该文件**不应提交到仓库**。
 > 构建环境没有正式 keystore 时，`android/app/build.gradle.kts` 会回落到
 > debug 签名并打印警告，构建不会失败——但这种包只能用于本地验证，
@@ -30,19 +24,19 @@ flutter build apk --release --dart-define=MTFORUM_UPDATE_URL=https://example.com
 
 ## 发布新版本
 
-1. 改 `pubspec.yaml` 的 `version:`（如 `2.47.8+169`）；
-2. 在 `CHANGELOG.md` 里写一节 `## v2.47.8`，**每条一行、不带 `-`/`1.` 前缀**
-   （App 内更新弹窗会自己加序号）；
-3. 构建 APK；
-4. 生成 `update.json` 并上传到 `https://loveqin.fun/Mt/update.json`：
+1. 改 `pubspec.yaml` 的 `version:`（如 `2.48.0+174`）；
+2. 在 `CHANGELOG.md` 里写一节对应版本的更新内容；
+3. 构建 APK（或推送 `v*` tag，由 GitHub Actions 构建并上传到 Release）。
 
-```bash
-python3 tools/make_update_json.py build/app/outputs/flutter-apk/app-release.apk -o update.json
-```
+> 应用内自动检查更新已移除，新版本通过仓库 Release 分发。
 
-脚本会自动带上 `version` / `versionCode` / `changelog` / `downloadUrl` /
-`sha256` / `size`，并校验两件最容易出错的事：**APK 的 versionName 是否等于
-pubspec 版本号**、**是否误用了 debug 签名**。任一不通过会返回非 0 退出码。
+## 外观
+
+- **液态玻璃**：顶栏、悬浮底栏、评论区弹层与输入栏使用背景模糊 + 饱和度增强 +
+  边缘高光的玻璃材质（`lib/core/widgets/liquid_glass.dart`），可在
+  设置 → 外观 中关闭。
+- **背景壁纸**：设置 → 外观 → 背景壁纸，可选内置渐变壁纸或从相册导入图片，
+  并调节遮罩强度保证文字可读（`lib/core/theme/wallpapers.dart`）。
 
 ## 文档
 

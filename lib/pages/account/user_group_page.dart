@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class UserGroupPage extends StatefulWidget {
   const UserGroupPage({super.key});
@@ -46,6 +47,7 @@ class _UserGroupPageState extends State<UserGroupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('用户组'),
         actions: [
           IconButton(

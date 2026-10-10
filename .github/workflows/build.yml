@@ -8,7 +8,6 @@ on:
 
 env:
   FLUTTER_VERSION: "3.47.1"
-  UPDATE_URL: "https://loveqin.fun/Mt/update.json"
 
 jobs:
   build:
@@ -69,7 +68,6 @@ jobs:
         run: >
           flutter build apk --release
           --target-platform android-arm64
-          --dart-define=MTFORUM_UPDATE_URL=${{ env.UPDATE_URL }}
 
       - name: Checksum
         run: |

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -121,6 +122,7 @@ class _FriendsPageState extends State<FriendsPage> {
         controller: _scrollController,
         slivers: [
           SliverAppBar(
+            flexibleSpace: const GlassAppBarBackground(),
             title: const Text('我的好友'),
             pinned: true,
             actions: [

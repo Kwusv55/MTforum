@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
 import '../widgets/thread_card.dart';
 import '../routes/thread_routes.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
@@ -210,6 +211,7 @@ class _FavoritesPageState extends State<FavoritesPage>
         controller: _scrollController,
         slivers: [
           SliverAppBar(
+            flexibleSpace: const GlassAppBarBackground(),
             title: const Text('我的收藏'),
             pinned: true,
             bottom: TabBar(

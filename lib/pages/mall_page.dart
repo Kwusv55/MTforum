@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
+import '../core/widgets/liquid_glass.dart';
 
 part '../features/mall/widgets/mall_detail_page.dart';
 part '../features/mall/widgets/mall_card.dart';
@@ -135,6 +136,7 @@ class _MallPageState extends State<MallPage> {
           slivers: [
             SliverAppBar.large(
               title: const Text('积分商城'),
+              flexibleSpace: GlassAppBarBackground.large(title: const Text('积分商城')),
               pinned: true,
               actions: [
                 IconButton(

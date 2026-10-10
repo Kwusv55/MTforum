@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class PasswordSecurityPage extends StatefulWidget {
   const PasswordSecurityPage({super.key});
@@ -129,6 +130,7 @@ class _PasswordSecurityPageState extends State<PasswordSecurityPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('密码安全'),
         actions: [
           TextButton(

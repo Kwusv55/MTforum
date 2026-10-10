@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -130,6 +131,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('编辑基本资料'),
         actions: [
           TextButton(

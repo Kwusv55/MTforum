@@ -5,6 +5,7 @@ import '../routes/thread_routes.dart';
 import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
 import '../widgets/thread_card.dart';
+import '../core/widgets/liquid_glass.dart';
 
 enum _SearchSort { latest, hot }
 
@@ -142,6 +143,7 @@ class _SearchPageState extends State<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('搜索'),
       ),
       body: CustomScrollView(

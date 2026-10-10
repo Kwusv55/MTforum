@@ -17,6 +17,7 @@ import 'favorites_page.dart';
 import 'mall_page.dart';
 import 'my_threads_page.dart';
 import 'settings_page.dart';
+import '../core/widgets/liquid_glass.dart';
 
 part '../features/profile/widgets/profile_hero.dart';
 part '../features/profile/widgets/profile_quick_actions.dart';
@@ -76,6 +77,7 @@ class _ProfilePageState extends State<ProfilePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
+              flexibleSpace: const GlassAppBarBackground(),
               title: const Text('我的'),
               pinned: true,
               actions: [
@@ -104,7 +106,13 @@ class _ProfilePageState extends State<ProfilePage> {
               const SliverFillRemaining(child: AppStateView.loading())
             else if (_profile != null)
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
+                // 玻璃模式下底栏悬浮在内容上，底部留出底栏高度。
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  30 + MediaQuery.paddingOf(context).bottom,
+                ),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _ProfileHero(profile: _profile!),

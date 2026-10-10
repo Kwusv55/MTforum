@@ -13,6 +13,7 @@ import 'account/user_group_page.dart';
 import 'account/social_center_page.dart';
 import 'account/poke_page.dart';
 import '../routes/thread_routes.dart';
+import '../core/widgets/liquid_glass.dart';
 
 part '../features/messages/widgets/notice_card.dart';
 
@@ -547,6 +548,7 @@ class _NoticePageState extends State<NoticePage>
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('论坛通知'),
         actions: [
           IconButton(

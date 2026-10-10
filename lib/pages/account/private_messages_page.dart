@@ -11,6 +11,7 @@ import '../../services/image_host_service.dart';
 import '../../services/message_badge_service.dart';
 import '../../widgets/app_state_view.dart';
 import 'user_profile_page.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 part '../../features/messages/widgets/pm_conversation_page.dart';
 part '../../features/messages/widgets/pm_message_text.dart';
@@ -58,6 +59,7 @@ class _PrivateMessagesPageState extends State<PrivateMessagesPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('私信'),
         actions: [
           IconButton(

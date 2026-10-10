@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
 import '../widgets/thread_card.dart';
 import '../routes/thread_routes.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class MyThreadsPage extends StatefulWidget {
   final String? uid;
@@ -173,6 +174,7 @@ class _MyThreadsPageState extends State<MyThreadsPage>
         controller: _scrollController,
         slivers: [
           SliverAppBar(
+            flexibleSpace: const GlassAppBarBackground(),
             title: Text(
               widget.uid == null
                   ? '我的帖子'

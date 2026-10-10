@@ -8,6 +8,7 @@ import '../widgets/app_state_view.dart';
 import '../widgets/thread_card.dart';
 import '../routes/thread_routes.dart';
 import 'thread_editor_page.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
@@ -69,6 +70,7 @@ class _CommunityPageState extends State<CommunityPage> {
           slivers: [
             SliverAppBar.large(
               title: const Text('社区'),
+              flexibleSpace: GlassAppBarBackground.large(title: const Text('社区')),
               pinned: true,
               actions: [
                 IconButton(
@@ -91,7 +93,13 @@ class _CommunityPageState extends State<CommunityPage> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                // 玻璃模式下底栏悬浮在内容上，底部留出底栏高度。
+                padding: EdgeInsets.fromLTRB(
+                  12,
+                  4,
+                  12,
+                  24 + MediaQuery.paddingOf(context).bottom,
+                ),
                 sliver: SliverList.builder(
                   itemCount: _groups.length,
                   itemBuilder: (context, index) {
@@ -464,6 +472,7 @@ class _ForumThreadsPageState extends State<ForumThreadsPage> {
           cacheExtent: 800,
           slivers: [
             SliverAppBar(
+              flexibleSpace: const GlassAppBarBackground(),
               title: Text(widget.board.name),
               pinned: true,
               actions: [

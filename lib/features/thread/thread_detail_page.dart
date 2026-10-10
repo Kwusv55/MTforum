@@ -22,6 +22,7 @@ import '../../pages/account/user_profile_page.dart';
 import '../../pages/thread_editor_page.dart';
 import 'thread_controller.dart';
 import 'thread_state.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 part 'widgets/post_card.dart';
 part 'widgets/post_content.dart';
@@ -219,7 +220,10 @@ class _ThreadDetailPageState extends State<ThreadDetailPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      showDragHandle: true,
+      // 背景与拖动条由评论区自己的玻璃面板绘制。
+      showDragHandle: false,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       builder: (_) => _CommentsSheet(
         detail: detail,
         initialTargetPid: targetPid,
@@ -249,7 +253,9 @@ class _ThreadDetailPageState extends State<ThreadDetailPage> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: false,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       builder: (_) => _ReplySheet(
         tid: detail.tid,
         fid: detail.fid,
@@ -348,6 +354,7 @@ class _ThreadDetailPageState extends State<ThreadDetailPage> {
         cacheExtent: 800,
         slivers: [
           SliverAppBar(
+            flexibleSpace: const GlassAppBarBackground(),
             pinned: true,
             // 长按标题复制。顶栏标题是省略号显示的，复制的是完整标题原文。
             title: GestureDetector(

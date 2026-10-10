@@ -11,6 +11,7 @@ import '../widgets/thread_card.dart';
 import '../routes/thread_routes.dart';
 import 'ranklist_page.dart';
 import 'search_page.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class HomePageController {
   VoidCallback? _scrollToTopCallback;
@@ -254,6 +255,7 @@ class _HomePageState extends State<HomePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar(
+              flexibleSpace: const GlassAppBarBackground(),
               title: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -340,7 +342,13 @@ class _HomePageState extends State<HomePage> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+                // 玻璃模式下底栏悬浮在内容上，底部留出底栏高度。
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  6,
+                  16,
+                  20 + MediaQuery.paddingOf(context).bottom,
+                ),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {

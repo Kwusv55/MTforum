@@ -40,140 +40,146 @@ class _CommentComposer extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return Material(
-      color: colors.surfaceContainerLow,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: colors.outlineVariant),
+    // 输入栏悬浮在评论列表上方，列表滚动时从玻璃后面经过。
+    return LiquidGlass(
+      edge: GlassEdge.top,
+      opacityBoost: 0.12,
+      fallbackColor: colors.surfaceContainerLow,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: colors.outlineVariant),
+            ),
           ),
-        ),
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (replyTargetName?.trim().isNotEmpty == true)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(6, 0, 2, 6),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.reply_rounded,
-                      size: 16,
-                      color: colors.primary,
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (replyTargetName?.trim().isNotEmpty == true)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 0, 2, 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.reply_rounded,
+                        size: 16,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '回复 @$replyTargetName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '取消回复',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: onCancelReply,
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                      ),
+                    ],
+                  ),
+                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: '表情',
+                    isSelected: showSmileys,
+                    onPressed: loggedIn ? onToggleSmileys : null,
+                    icon: Icon(
+                      showSmileys
+                          ? Icons.keyboard_rounded
+                          : Icons.sentiment_satisfied_alt_rounded,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        '回复 @$replyTargetName',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.primary,
-                          fontWeight: FontWeight.w600,
+                  ),
+                  IconButton(
+                    tooltip: attachmentCount > 0
+                        ? '已添加 $attachmentCount 张图片'
+                        : '添加图片',
+                    onPressed: loggedIn && !sending && !uploadingImage
+                        ? onPickImage
+                        : null,
+                    icon: uploadingImage
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Badge(
+                            isLabelVisible: attachmentCount > 0,
+                            label: Text('$attachmentCount'),
+                            child: const Icon(Icons.image_outlined),
+                          ),
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      readOnly: !loggedIn,
+                      minLines: 1,
+                      maxLines: 5,
+                      textInputAction: TextInputAction.newline,
+                      onTap: onTapInput,
+                      decoration: InputDecoration(
+                        hintText: loggedIn
+                            ? (replyTargetName?.trim().isNotEmpty == true
+                                ? '回复 @$replyTargetName…'
+                                : '写下你的评论…')
+                            : '登录后参与评论',
+                        filled: true,
+                        fillColor: colors.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
                         ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: '取消回复',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: onCancelReply,
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: '发送',
+                    onPressed: canSend ? onSend : null,
+                    icon: sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
+                ],
               ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                IconButton(
-                  tooltip: '表情',
-                  isSelected: showSmileys,
-                  onPressed: loggedIn ? onToggleSmileys : null,
-                  icon: Icon(
-                    showSmileys
-                        ? Icons.keyboard_rounded
-                        : Icons.sentiment_satisfied_alt_rounded,
-                  ),
-                ),
-                IconButton(
-                  tooltip: attachmentCount > 0
-                      ? '已添加 $attachmentCount 张图片'
-                      : '添加图片',
-                  onPressed: loggedIn && !sending && !uploadingImage
-                      ? onPickImage
-                      : null,
-                  icon: uploadingImage
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Badge(
-                          isLabelVisible: attachmentCount > 0,
-                          label: Text('$attachmentCount'),
-                          child: const Icon(Icons.image_outlined),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                child: showSmileys
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: SizedBox(
+                          height: 220,
+                          child: _SmileyPicker(
+                            onSelected: onSmileySelected,
+                          ),
                         ),
-                ),
-                const SizedBox(width: 2),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    readOnly: !loggedIn,
-                    minLines: 1,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.newline,
-                    onTap: onTapInput,
-                    decoration: InputDecoration(
-                      hintText: loggedIn
-                          ? (replyTargetName?.trim().isNotEmpty == true
-                              ? '回复 @$replyTargetName…'
-                              : '写下你的评论…')
-                          : '登录后参与评论',
-                      filled: true,
-                      fillColor: colors.surfaceContainerHighest,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 11,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  tooltip: '发送',
-                  onPressed: canSend ? onSend : null,
-                  icon: sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_rounded),
-                ),
-              ],
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              child: showSmileys
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: SizedBox(
-                        height: 220,
-                        child: _SmileyPicker(
-                          onSelected: onSmileySelected,
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );

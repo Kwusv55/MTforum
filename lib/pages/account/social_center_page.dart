@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
 import 'user_profile_page.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class SocialCenterPage extends StatefulWidget {
   const SocialCenterPage({super.key});
@@ -42,7 +43,10 @@ class _SocialCenterPageState extends State<SocialCenterPage> {
   Widget build(BuildContext context) {
     if (_uid == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('关系中心')),
+        appBar: AppBar(
+          flexibleSpace: const GlassAppBarBackground(),
+          title: const Text('关系中心'),
+        ),
         body: Center(
           child: _error == null
               ? const CircularProgressIndicator()
@@ -55,6 +59,7 @@ class _SocialCenterPageState extends State<SocialCenterPage> {
       length: 7,
       child: Scaffold(
         appBar: AppBar(
+          flexibleSpace: const GlassAppBarBackground(),
           title: const Text('关系中心'),
           bottom: const TabBar(
             isScrollable: false,
@@ -119,7 +124,10 @@ class SocialUsersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
+        title: Text(title),
+      ),
       body: _SocialList(
         type: type,
         uid: uid,
@@ -457,7 +465,10 @@ class FriendRequestsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('好友申请')),
+      appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
+        title: const Text('好友申请'),
+      ),
       body: const _FriendRequestList(),
     );
   }

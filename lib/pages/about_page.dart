@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../services/analytics_service.dart';
 import '../services/feedback_service.dart';
-import '../services/update_service.dart';
+import '../services/app_version_service.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -30,7 +31,7 @@ class _AboutPageState extends State<AboutPage> {
   @override
   void initState() {
     super.initState();
-    _versionInfoFuture = UpdateService.instance.getCurrentVersionInfo();
+    _versionInfoFuture = AppVersionService.instance.getCurrentVersionInfo();
     _appStats = AnalyticsService.instance.latestStats;
     _loadStats();
   }
@@ -105,6 +106,7 @@ class _AboutPageState extends State<AboutPage> {
         slivers: [
           SliverAppBar.large(
             title: const Text('关于'),
+            flexibleSpace: GlassAppBarBackground.large(title: const Text('关于')),
             pinned: true,
             centerTitle: true,
           ),

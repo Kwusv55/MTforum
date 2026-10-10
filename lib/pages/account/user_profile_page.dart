@@ -10,6 +10,7 @@ import 'social_center_page.dart';
 import 'poke_page.dart';
 import 'wall_page.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class UserProfilePage extends StatefulWidget {
   final String uid;
@@ -210,6 +211,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: Text(_profile?.username ?? '用户主页'),
         actions: [
           IconButton(

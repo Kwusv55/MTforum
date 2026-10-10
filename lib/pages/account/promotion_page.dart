@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class PromotionPage extends StatefulWidget {
   const PromotionPage({super.key});
@@ -62,6 +63,7 @@ class _PromotionPageState extends State<PromotionPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('访问推广'),
         actions: [
           IconButton(

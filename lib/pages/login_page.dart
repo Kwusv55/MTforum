@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -93,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(flexibleSpace: const GlassAppBarBackground()),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

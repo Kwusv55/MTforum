@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import 'install_identity_service.dart';
-import 'update_service.dart';
+import 'app_version_service.dart';
 
 class FeedbackSubmitResult {
   final bool success;
@@ -120,7 +120,7 @@ class FeedbackService {
     var versionName = '';
     var versionCode = '';
     try {
-      final info = await UpdateService.instance.getCurrentVersionInfo();
+      final info = await AppVersionService.instance.getCurrentVersionInfo();
       versionName = '${info['versionName'] ?? ''}'.trim();
       versionCode = '${info['versionCode'] ?? ''}'.trim();
     } catch (_) {

@@ -143,6 +143,7 @@ class _SignRankPageState extends State<_SignRankPage>
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
+            flexibleSpace: const GlassAppBarBackground(),
             title: const Text('签到'),
             pinned: true,
             bottom: TabBar(

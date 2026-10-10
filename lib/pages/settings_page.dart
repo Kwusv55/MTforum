@@ -6,8 +6,10 @@ import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../services/comment_filter_service.dart';
 import '../services/theme_service.dart';
-import '../services/update_service.dart';
+import '../services/app_version_service.dart';
 import 'login_page.dart';
+import 'wallpaper_page.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -19,12 +21,9 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _api = ApiService.instance;
   final _theme = ThemeService.instance;
-  final _updates = UpdateService.instance;
   final _commentFilter = CommentFilterService.instance;
 
-  bool _autoCheck = true;
   bool _wafAutoVerify = true;
-  bool _checking = false;
   bool _fontChanging = false;
   String _version = '';
 
@@ -51,19 +50,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _load() async {
     await _commentFilter.load();
-    final auto = await _updates.getStartupCheckEnabled();
     final prefs = await SharedPreferences.getInstance();
     final wafAutoVerify =
         prefs.getBool(ApiService.wafAutoVerifyPrefKey) ?? true;
     String version = '';
     try {
-      final info = await _updates.getCurrentVersionInfo();
+      final info = await AppVersionService.instance.getCurrentVersionInfo();
       version = '${info['versionName'] ?? ''} (${info['versionCode'] ?? ''})';
     } catch (_) {}
 
     if (!mounted) return;
     setState(() {
-      _autoCheck = auto;
       _wafAutoVerify = wafAutoVerify;
       _version = version;
     });
@@ -221,30 +218,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _checkUpdate() async {
-    if (_checking) return;
-    setState(() => _checking = true);
-    try {
-      final result = await _updates.check();
-      if (!mounted) return;
-      if (result.hasUpdate) {
-        await showUpdateDialog(context, result);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已是最新版本 v${result.currentVersion}')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('检查更新失败：$e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -252,7 +225,10 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          const SliverAppBar(title: Text('设置'), pinned: true),
+          const SliverAppBar(
+            flexibleSpace: GlassAppBarBackground(),
+            title: Text('设置'), pinned: true,
+          ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             sliver: SliverList(
@@ -407,6 +383,27 @@ class _SettingsPageState extends State<SettingsPage> {
                               : const Icon(Icons.chevron_right_rounded),
                       onTap: _fontChanging ? null : _pickCustomFont,
                     ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.wallpaper_rounded),
+                      title: const Text('背景壁纸'),
+                      subtitle: Text(
+                        _theme.hasWallpaper ? '已启用壁纸' : '内置渐变或从相册选择图片',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const WallpaperPage()),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.blur_on_rounded),
+                      title: const Text('液态玻璃效果'),
+                      subtitle: const Text('顶栏、底栏和评论区背景模糊'),
+                      value: _theme.glassEnabled,
+                      onChanged: _theme.setGlassEnabled,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -522,39 +519,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       value: _wafAutoVerify,
                       onChanged: _setWafAutoVerify,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                const _SectionTitle('更新'),
-                const SizedBox(height: 6),
-                _Group(
-                  children: [
-                    SwitchListTile(
-                      secondary: const Icon(Icons.update_rounded),
-                      title: const Text('启动时检查更新'),
-                      subtitle: const Text('打开应用后自动检测新版本'),
-                      value: _autoCheck,
-                      onChanged: (value) async {
-                        setState(() => _autoCheck = value);
-                        await _updates.setStartupCheckEnabled(value);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: _checking
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.system_update_alt_rounded),
-                      title: const Text('检查更新'),
-                      subtitle: Text(
-                        _version.isEmpty ? '读取版本中…' : '当前版本 $_version',
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: _checking ? null : _checkUpdate,
                     ),
                   ],
                 ),

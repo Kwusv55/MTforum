@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import '../../services/api_service.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class AvatarUploadPage extends StatefulWidget {
   const AvatarUploadPage({super.key});
@@ -78,7 +79,10 @@ class _AvatarUploadPageState extends State<AvatarUploadPage> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('修改头像')),
+      appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
+        title: const Text('修改头像'),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
         children: [

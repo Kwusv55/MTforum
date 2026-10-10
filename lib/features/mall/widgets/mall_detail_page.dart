@@ -172,6 +172,7 @@ class _MallDetailPageState extends State<MallDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('商品详情'),
       ),
       body: _loading && _detail == null

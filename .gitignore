@@ -38,8 +38,6 @@ scripts/
 test/
 docs/
 
-# 发布产物（由 tools/publish.py 生成后上传，不入库）
-/update.json
 __pycache__/
 *.pyc
 

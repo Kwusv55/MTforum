@@ -28,6 +28,14 @@ class _CommentsSheet extends StatefulWidget {
 }
 
 class _CommentsSheetState extends State<_CommentsSheet> {
+  /// 悬浮输入栏的实际高度，评论列表底部按它留白。
+  double _composerHeight = 0;
+
+  void _onComposerSize(Size size) {
+    if (!mounted || (size.height - _composerHeight).abs() < 0.5) return;
+    setState(() => _composerHeight = size.height);
+  }
+
   static const _commentReverseOrderKey = 'thread_comment_reverse_order';
 
   final _scrollController = ScrollController();
@@ -59,8 +67,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   PostEditorForm? _replyForm;
   final List<PostAttachmentUploadResult> _replyAttachments = [];
 
-  bool get _targetMode =>
-      widget.initialTargetPid?.trim().isNotEmpty == true;
+  bool get _targetMode => widget.initialTargetPid?.trim().isNotEmpty == true;
 
   @override
   void initState() {
@@ -177,8 +184,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   }
 
   void _onTargetWindowScroll() {
-    if (!_targetMode || !_targetWindowPrimed ||
-        !_scrollController.hasClients) {
+    if (!_targetMode || !_targetWindowPrimed || !_scrollController.hasClients) {
       return;
     }
 
@@ -341,9 +347,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     return _commentFilter.matches(post.content);
   }
 
-  List<Post> get _filteredOutComments => _rawComments
-      .where(_isCommentFiltered)
-      .toList(growable: false);
+  List<Post> get _filteredOutComments =>
+      _rawComments.where(_isCommentFiltered).toList(growable: false);
 
   List<Post> get _filteredComments => _rawComments
       .where((post) => !_isCommentFiltered(post))
@@ -471,9 +476,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       post,
       chronological,
     );
-    final parent = parentPid == null
-        ? null
-        : _findPost(chronological, parentPid);
+    final parent =
+        parentPid == null ? null : _findPost(chronological, parentPid);
     final itemKey = targeted
         ? _targetCommentKey
         : _commentKeys.putIfAbsent(post.pid, () => GlobalKey());
@@ -605,15 +609,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     required ColorScheme colors,
     required bool previous,
   }) {
-    final loading = previous
-        ? _loadingPreviousTargetPage
-        : _loadingNextTargetPage;
-    final failed = previous
-        ? _previousTargetPageFailed
-        : _nextTargetPageFailed;
-    final hasPage = previous
-        ? _hasPreviousTargetPage
-        : _hasNextTargetPage;
+    final loading =
+        previous ? _loadingPreviousTargetPage : _loadingNextTargetPage;
+    final failed = previous ? _previousTargetPageFailed : _nextTargetPageFailed;
+    final hasPage = previous ? _hasPreviousTargetPage : _hasNextTargetPage;
 
     if (loading) {
       return const Padding(
@@ -698,9 +697,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
     final value = _composerController.value;
     final selection = value.selection;
-    final hasSelection = selection.isValid &&
-        selection.start >= 0 &&
-        selection.end >= 0;
+    final hasSelection =
+        selection.isValid && selection.start >= 0 && selection.end >= 0;
     final start = hasSelection ? selection.start : value.text.length;
     final end = hasSelection ? selection.end : start;
     final nextText = value.text.replaceRange(start, end, marker);
@@ -829,13 +827,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     final comments = _comments;
     final rawCommentCount = _rawComments.length;
     final filteredCommentCount = _filteredOutComments.length;
-    final allCommentsFiltered = rawCommentCount > 0 &&
-        !_showFilteredComments &&
-        comments.isEmpty;
+    final allCommentsFiltered =
+        rawCommentCount > 0 && !_showFilteredComments && comments.isEmpty;
     final loading = _loadingAll ||
         widget.isLoadingMore() ||
-        (_targetMode &&
-            (_loadingPreviousTargetPage || _loadingNextTargetPage));
+        (_targetMode && (_loadingPreviousTargetPage || _loadingNextTargetPage));
     final hasMore = _targetMode
         ? _hasPreviousTargetPage || _hasNextTargetPage
         : widget.hasMore();
@@ -849,233 +845,290 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: FractionallySizedBox(
         heightFactor: 0.92,
-        child: Material(
-          color: colors.surface,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 8, 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: colors.secondaryContainer,
-                        borderRadius: BorderRadius.circular(12),
+        child: LiquidGlass(
+          borderRadius: _glassSheetRadius,
+          edge: GlassEdge.top,
+          opacityBoost: 0.14,
+          fallbackColor: colors.surface,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                const _GlassSheetHandle(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: colors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.forum_rounded,
+                          color: colors.onSecondaryContainer,
+                          size: 20,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.forum_rounded,
-                        color: colors.onSecondaryContainer,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _showFilteredComments
-                                ? '已过滤评论'
-                                : widget.initialTargetPid
-                                            ?.trim()
-                                            .isNotEmpty ==
-                                        true
-                                    ? '已定位到回复'
-                                    : '评论区',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            _showFilteredComments
-                                ? '共 $filteredCommentCount 条·点击返回查看全部评论'
-                                : _loadingAll
-                                ? '正在加载全部评论…'
-                                : comments.isEmpty
-                                    ? (allCommentsFiltered
-                                        ? '已过滤 $rawCommentCount 条评论'
-                                        : '暂无评论')
-                                    : _targetMode
-                                        ? '已定位 · 已加载 ${comments.length} 条'
-                                        : '${comments.length} 条评论 · '
-                                            '${_reverseOrder ? '倒序' : '正序'}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colors.outline,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_targetMode)
-                      IconButton(
-                        tooltip: '回到定位的回复',
-                        onPressed: _scrollToTargetComment,
-                        icon: const Icon(Icons.my_location_rounded),
-                      ),
-                    IconButton(
-                      tooltip: _targetMode
-                          ? '定位模式按楼层正序显示'
-                          : (_reverseOrder
-                              ? '当前倒序，点击切换正序'
-                              : '当前正序，点击切换倒序'),
-                      onPressed: _loadingAll ||
-                              _targetMode ||
-                              _showFilteredComments
-                          ? null
-                          : () => _setCommentOrder(!_reverseOrder),
-                      icon: Icon(
-                        _reverseOrder
-                            ? Icons.arrow_downward_rounded
-                            : Icons.arrow_upward_rounded,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: '关闭',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (filteredCommentCount > 0)
-                Material(
-                  color: colors.surfaceContainerLow,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showFilteredComments = !_showFilteredComments;
-                      });
-                      if (_scrollController.hasClients) {
-                        _scrollController.jumpTo(
-                          _scrollController.position.minScrollExtent,
-                        );
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _showFilteredComments
-                                ? Icons.arrow_back_rounded
-                                : Icons.filter_alt_outlined,
-                            size: 18,
-                            color: colors.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _showFilteredComments
-                                  ? '正在查看 $filteredCommentCount 条已过滤评论'
-                                  : '已过滤 $filteredCommentCount 条评论',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                          Text(
-                            _showFilteredComments ? '返回评论' : '查看',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: colors.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: comments.isEmpty && !loading && !hasMore
-                    ? Center(
+                      const SizedBox(width: 10),
+                      Expanded(
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.chat_bubble_outline_rounded,
-                              size: 42,
-                              color: colors.outline,
-                            ),
-                            const SizedBox(height: 10),
                             Text(
-                              allCommentsFiltered ? '评论已被过滤' : '还没有评论',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                color: colors.onSurfaceVariant,
+                              _showFilteredComments
+                                  ? '已过滤评论'
+                                  : widget.initialTargetPid
+                                              ?.trim()
+                                              .isNotEmpty ==
+                                          true
+                                      ? '已定位到回复'
+                                      : '评论区',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const SizedBox(height: 4),
                             Text(
-                              allCommentsFiltered
-                                  ? '点击顶部“已过滤”查看隐藏内容'
-                                  : '来发表第一条评论吧',
+                              _showFilteredComments
+                                  ? '共 $filteredCommentCount 条·点击返回查看全部评论'
+                                  : _loadingAll
+                                      ? '正在加载全部评论…'
+                                      : comments.isEmpty
+                                          ? (allCommentsFiltered
+                                              ? '已过滤 $rawCommentCount 条评论'
+                                              : '暂无评论')
+                                          : _targetMode
+                                              ? '已定位 · 已加载 ${comments.length} 条'
+                                              : '${comments.length} 条评论 · '
+                                                  '${_reverseOrder ? '倒序' : '正序'}',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colors.outline,
                               ),
                             ),
                           ],
                         ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 18),
-                        itemCount: comments.length + (_targetMode ? 2 : 1),
-                        itemBuilder: (context, index) {
-                          if (_targetMode && index == 0) {
-                            return _buildTargetWindowEdge(
-                              theme: theme,
-                              colors: colors,
-                              previous: true,
-                            );
-                          }
-
-                          final commentIndex =
-                              _targetMode ? index - 1 : index;
-                          if (commentIndex == comments.length) {
-                            if (_targetMode) {
-                              return _buildTargetWindowEdge(
-                                theme: theme,
-                                colors: colors,
-                                previous: false,
-                              );
-                            }
-                            return _buildCommentsTail(
-                              theme: theme,
-                              colors: colors,
-                              loading: loading,
-                              hasMore: hasMore,
-                            );
-                          }
-                          return _buildCommentCard(comments[commentIndex]);
-                        },
                       ),
-              ),
-              _CommentComposer(
-                controller: _composerController,
-                focusNode: _composerFocusNode,
-                loggedIn: loggedIn,
-                sending: _sending,
-                uploadingImage: _uploadingImage,
-                attachmentCount: _replyAttachments.length,
-                canSend: canSend,
-                showSmileys: _showSmileys,
-                replyTargetName: _replyTarget?.authorName,
-                onTapInput: _hideSmileysForKeyboard,
-                onToggleSmileys: _toggleSmileys,
-                onPickImage: _pickReplyImage,
-                onCancelReply: _cancelReply,
-                onSend: _sendComment,
-                onSmileySelected: _insertSmiley,
-              ),
-            ],
+                      if (_targetMode)
+                        IconButton(
+                          tooltip: '回到定位的回复',
+                          onPressed: _scrollToTargetComment,
+                          icon: const Icon(Icons.my_location_rounded),
+                        ),
+                      IconButton(
+                        tooltip: _targetMode
+                            ? '定位模式按楼层正序显示'
+                            : (_reverseOrder ? '当前倒序，点击切换正序' : '当前正序，点击切换倒序'),
+                        onPressed:
+                            _loadingAll || _targetMode || _showFilteredComments
+                                ? null
+                                : () => _setCommentOrder(!_reverseOrder),
+                        icon: Icon(
+                          _reverseOrder
+                              ? Icons.arrow_downward_rounded
+                              : Icons.arrow_upward_rounded,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '关闭',
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (filteredCommentCount > 0)
+                  Material(
+                    color: colors.surfaceContainerLow,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _showFilteredComments = !_showFilteredComments;
+                        });
+                        if (_scrollController.hasClients) {
+                          _scrollController.jumpTo(
+                            _scrollController.position.minScrollExtent,
+                          );
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _showFilteredComments
+                                  ? Icons.arrow_back_rounded
+                                  : Icons.filter_alt_outlined,
+                              size: 18,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _showFilteredComments
+                                    ? '正在查看 $filteredCommentCount 条已过滤评论'
+                                    : '已过滤 $filteredCommentCount 条评论',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ),
+                            Text(
+                              _showFilteredComments ? '返回评论' : '查看',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: colors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: colors.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: comments.isEmpty && !loading && !hasMore
+                            ? Padding(
+                                padding:
+                                    EdgeInsets.only(bottom: _composerHeight),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.chat_bubble_outline_rounded,
+                                        size: 42,
+                                        color: colors.outline,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        allCommentsFiltered
+                                            ? '评论已被过滤'
+                                            : '还没有评论',
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        allCommentsFiltered
+                                            ? '点击顶部“已过滤”查看隐藏内容'
+                                            : '来发表第一条评论吧',
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          color: colors.outline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: _scrollController,
+                                keyboardDismissBehavior:
+                                    ScrollViewKeyboardDismissBehavior.onDrag,
+                                padding: EdgeInsets.fromLTRB(
+                                  10,
+                                  6,
+                                  10,
+                                  18 + _composerHeight,
+                                ),
+                                itemCount:
+                                    comments.length + (_targetMode ? 2 : 1),
+                                itemBuilder: (context, index) {
+                                  if (_targetMode && index == 0) {
+                                    return _buildTargetWindowEdge(
+                                      theme: theme,
+                                      colors: colors,
+                                      previous: true,
+                                    );
+                                  }
+
+                                  final commentIndex =
+                                      _targetMode ? index - 1 : index;
+                                  if (commentIndex == comments.length) {
+                                    if (_targetMode) {
+                                      return _buildTargetWindowEdge(
+                                        theme: theme,
+                                        colors: colors,
+                                        previous: false,
+                                      );
+                                    }
+                                    return _buildCommentsTail(
+                                      theme: theme,
+                                      colors: colors,
+                                      loading: loading,
+                                      hasMore: hasMore,
+                                    );
+                                  }
+                                  return _buildCommentCard(
+                                      comments[commentIndex]);
+                                },
+                              ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: SizeReporter(
+                          onChanged: _onComposerSize,
+                          child: _CommentComposer(
+                            controller: _composerController,
+                            focusNode: _composerFocusNode,
+                            loggedIn: loggedIn,
+                            sending: _sending,
+                            uploadingImage: _uploadingImage,
+                            attachmentCount: _replyAttachments.length,
+                            canSend: canSend,
+                            showSmileys: _showSmileys,
+                            replyTargetName: _replyTarget?.authorName,
+                            onTapInput: _hideSmileysForKeyboard,
+                            onToggleSmileys: _toggleSmileys,
+                            onPickImage: _pickReplyImage,
+                            onCancelReply: _cancelReply,
+                            onSend: _sendComment,
+                            onSmileySelected: _insertSmiley,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const _glassSheetRadius = BorderRadius.vertical(top: Radius.circular(28));
+
+/// 玻璃弹层自带的拖动条（系统拖动条画在弹层 Material 上，透明背景下会悬空）。
+class _GlassSheetHandle extends StatelessWidget {
+  const _GlassSheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class WallPage extends StatefulWidget {
   final String uid;
@@ -144,6 +145,7 @@ class _WallPageState extends State<WallPage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: Text(
           titleName == null || titleName.isEmpty
               ? '留言墙'

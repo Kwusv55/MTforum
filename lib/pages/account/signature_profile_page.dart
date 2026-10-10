@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class SignatureProfilePage extends StatefulWidget {
   const SignatureProfilePage({super.key});
@@ -85,6 +86,7 @@ class _SignatureProfilePageState extends State<SignatureProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('简介与签名'),
         actions: [
           TextButton(

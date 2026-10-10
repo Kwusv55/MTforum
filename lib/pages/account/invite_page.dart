@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class InvitePage extends StatefulWidget {
   const InvitePage({super.key});
@@ -44,6 +45,7 @@ class _InvitePageState extends State<InvitePage> {
     final colors = theme.colorScheme;
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('邀请好友'),
         actions: [
           IconButton(

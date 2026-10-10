@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_service.dart';
 import '../../widgets/app_state_view.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class CreditsPage extends StatefulWidget {
   const CreditsPage({super.key});
@@ -91,6 +92,7 @@ class _CreditsPageState extends State<CreditsPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        flexibleSpace: const GlassAppBarBackground(),
         title: const Text('积分中心'),
         bottom: TabBar(
           controller: _tabs,

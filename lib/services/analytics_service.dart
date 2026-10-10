@@ -7,7 +7,7 @@ import 'package:dio/dio.dart';
 
 import 'feedback_service.dart';
 import 'install_identity_service.dart';
-import 'update_service.dart';
+import 'app_version_service.dart';
 
 class AppStats {
   final int todayLaunches;
@@ -232,7 +232,7 @@ class AnalyticsService {
       var versionName = '';
       var versionCode = '';
       try {
-        final info = await UpdateService.instance.getCurrentVersionInfo();
+        final info = await AppVersionService.instance.getCurrentVersionInfo();
         versionName = '${info['versionName'] ?? ''}'.trim();
         versionCode = '${info['versionCode'] ?? ''}'.trim();
       } catch (_) {

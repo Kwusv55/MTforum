@@ -14,8 +14,9 @@ import 'services/feedback_service.dart';
 import 'services/message_badge_service.dart';
 import 'services/theme_service.dart';
 import 'services/sign_service.dart';
-import 'services/update_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/wallpapers.dart';
+import 'core/widgets/liquid_glass.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,9 +43,15 @@ class MTForumApp extends StatelessWidget {
           supportedLocales: const [Locale('zh', 'CN')],
           theme: AppTheme.light(
             fontFamily: ThemeService.instance.customFontFamily,
+            glass: ThemeService.instance.glassEnabled,
+            wallpaperId: ThemeService.instance.wallpaperId,
+            wallpaperDim: ThemeService.instance.wallpaperDim,
           ),
           darkTheme: AppTheme.dark(
             fontFamily: ThemeService.instance.customFontFamily,
+            glass: ThemeService.instance.glassEnabled,
+            wallpaperId: ThemeService.instance.wallpaperId,
+            wallpaperDim: ThemeService.instance.wallpaperDim,
           ),
           themeMode: ThemeService.instance.mode,
           builder: (context, child) {
@@ -133,7 +140,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     await _runAutoSign();
     await MessageBadgeService.instance.refresh(force: true);
     await _checkFeedbackReplies();
-    await _checkUpdate();
   }
 
   Future<void> _checkFeedbackReplies() async {
@@ -226,9 +232,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result.success
-                ? '自动签到：${result.message}'
-                : result.message,
+            result.success ? '自动签到：${result.message}' : result.message,
           ),
         ),
       );
@@ -237,21 +241,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _checkUpdate() async {
-    try {
-      final updates = UpdateService.instance;
-      if (!await updates.getStartupCheckEnabled()) return;
-      final result = await updates.check();
-      if (!mounted || !result.hasUpdate) return;
-      await showUpdateDialog(context, result);
-    } catch (_) {
-      // 自动检查更新失败时保持静默，不阻塞应用启动。
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final glass = ThemeService.instance.glassEnabled;
     return Scaffold(
+      // 玻璃模式下底栏悬浮，页面内容延伸到底栏下方，滚动时从玻璃后面经过。
+      extendBody: glass,
       body: _AnimatedTabStack(
         index: _currentIndex,
         children: _pages,
@@ -260,7 +255,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         animation: MessageBadgeService.instance,
         builder: (context, _) {
           final messageBadge = MessageBadgeService.instance.summary.totalLabel;
-          return NavigationBar(
+          final bar = NavigationBar(
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
               if (index == _currentIndex) {
@@ -302,12 +297,13 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
               ),
             ],
           );
+          if (!glass) return bar;
+          return GlassNavigationShell(child: bar);
         },
       ),
     );
   }
 }
-
 
 class _AnimatedTabStack extends StatefulWidget {
   final int index;
@@ -405,7 +401,7 @@ class _AnimatedTabStackState extends State<_AnimatedTabStack>
         excluding: !isCurrent,
         child: IgnorePointer(
           ignoring: !isCurrent || _controller.isAnimating,
-          child: RepaintBoundary(child: child),
+          child: RepaintBoundary(child: WallpaperBackdrop(child: child)),
         ),
       ),
     );
@@ -439,7 +435,6 @@ class _AnimatedTabStackState extends State<_AnimatedTabStack>
     );
   }
 }
-
 
 class _NavigationIconWithBadge extends StatelessWidget {
   final IconData icon;
