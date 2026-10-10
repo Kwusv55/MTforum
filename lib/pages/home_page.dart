@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
-import '../services/analytics_service.dart';
 import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
 import '../widgets/thread_card.dart';
@@ -89,15 +88,7 @@ class _HomePageState extends State<HomePage> {
     if (_onlineStatsLoading) return;
     _onlineStatsLoading = true;
     try {
-      var onlineUsers = await _api.getForumOnlineCount();
-      if (onlineUsers == null) {
-        // 论坛页面抓取失败时，回退到自建统计服务的在线人数。
-        try {
-          onlineUsers = (await AnalyticsService.instance.fetchStats())?.onlineUsers;
-        } catch (_) {
-          // 保持 null，展示层继续显示上一次结果。
-        }
-      }
+      final onlineUsers = await _api.getForumOnlineCount();
       if (!mounted || onlineUsers == null) return;
       if (_forumOnlineUsers != onlineUsers) {
         setState(() => _forumOnlineUsers = onlineUsers);

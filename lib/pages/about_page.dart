@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../services/analytics_service.dart';
-import '../services/feedback_service.dart';
 import '../services/app_version_service.dart';
 import '../core/widgets/liquid_glass.dart';
 
@@ -22,35 +20,14 @@ class _AboutPageState extends State<AboutPage> {
 
   late final Future<Map<String, dynamic>> _versionInfoFuture;
 
-  final _contentController = TextEditingController();
-  final _contactController = TextEditingController();
-  bool _sending = false;
-  AppStats? _appStats;
-  bool _statsLoading = false;
-
   @override
   void initState() {
     super.initState();
     _versionInfoFuture = AppVersionService.instance.getCurrentVersionInfo();
-    _appStats = AnalyticsService.instance.latestStats;
-    _loadStats();
-  }
-
-  Future<void> _loadStats() async {
-    if (_statsLoading) return;
-    setState(() => _statsLoading = true);
-    final stats = await AnalyticsService.instance.fetchStats();
-    if (!mounted) return;
-    setState(() {
-      _statsLoading = false;
-      if (stats != null) _appStats = stats;
-    });
   }
 
   @override
   void dispose() {
-    _contentController.dispose();
-    _contactController.dispose();
     super.dispose();
   }
 
@@ -60,37 +37,6 @@ class _AboutPageState extends State<AboutPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label 已复制'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _submitFeedback() async {
-    final content = _contentController.text.trim();
-    if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入反馈内容')),
-      );
-      return;
-    }
-
-    setState(() => _sending = true);
-    final result = await FeedbackService.instance.submit(
-      content: content,
-      contact: _contactController.text,
-    );
-
-    if (!mounted) return;
-    setState(() => _sending = false);
-
-    if (result.success) {
-      _contentController.clear();
-      _contactController.clear();
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.message),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -121,10 +67,6 @@ class _AboutPageState extends State<AboutPage> {
                   const _SectionTitle(title: '作者信息'),
                   const SizedBox(height: 10),
                   _buildAuthorCard(theme, colors),
-                  const SizedBox(height: 28),
-                  const _SectionTitle(title: '问题反馈'),
-                  const SizedBox(height: 10),
-                  _buildFeedbackCard(),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -170,8 +112,7 @@ class _AboutPageState extends State<AboutPage> {
         FutureBuilder<Map<String, dynamic>>(
           future: _versionInfoFuture,
           builder: (context, snapshot) {
-            final versionName =
-                '${snapshot.data?['versionName'] ?? ''}'.trim();
+            final versionName = '${snapshot.data?['versionName'] ?? ''}'.trim();
             return Text(
               versionName.isEmpty ? 'v—' : 'v$versionName',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -188,96 +129,8 @@ class _AboutPageState extends State<AboutPage> {
             color: colors.outline,
           ),
         ),
-        const SizedBox(height: 12),
-        _buildGlobalStats(theme, colors),
       ],
     );
-  }
-
-  Widget _buildGlobalStats(ThemeData theme, ColorScheme colors) {
-    final stats = _appStats;
-    if (stats == null) {
-      return InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: _statsLoading ? null : _loadStats,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_statsLoading)
-                const SizedBox(
-                  width: 13,
-                  height: 13,
-                  child: CircularProgressIndicator(strokeWidth: 1.8),
-                )
-              else
-                Icon(Icons.public_rounded, size: 16, color: colors.outline),
-              const SizedBox(width: 6),
-              Text(
-                _statsLoading
-                    ? '正在获取全网数据'
-                    : AnalyticsService.instance.isConfigured
-                        ? '全网数据暂不可用 · 点击重试'
-                        : '匿名统计地址未配置',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: colors.outline,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _GlobalStatChip(
-              icon: Icons.today_outlined,
-              label: '今日启动',
-              value: '${_formatCount(stats.todayLaunches)} 次',
-            ),
-            _GlobalStatChip(
-              icon: Icons.rocket_launch_outlined,
-              label: '全网启动',
-              value: '${_formatCount(stats.totalLaunches)} 次',
-            ),
-            _GlobalStatChip(
-              icon: Icons.install_mobile_outlined,
-              label: '匿名安装',
-              value: _formatCount(stats.uniqueInstalls),
-            ),
-            _GlobalStatChip(
-              icon: Icons.calendar_today_outlined,
-              label: '近7日活跃',
-              value: _formatCount(stats.active7d),
-            ),
-          ],
-        ),
-        const SizedBox(height: 7),
-        Text(
-          '匿名统计 · 不使用论坛 Cookie',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: colors.outline,
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatCount(int value) {
-    final text = value.toString();
-    final out = StringBuffer();
-    for (var i = 0; i < text.length; i++) {
-      if (i > 0 && (text.length - i) % 3 == 0) out.write(',');
-      out.write(text[i]);
-    }
-    return out.toString();
   }
 
   Widget _buildAuthorCard(ThemeData theme, ColorScheme colors) {
@@ -372,97 +225,6 @@ class _AboutPageState extends State<AboutPage> {
             const _SkillBar(label: 'Java', percent: 3),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFeedbackCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _contentController,
-              minLines: 1,
-              maxLines: 8,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              decoration: const InputDecoration(
-                labelText: '反馈内容',
-                hintText: '描述遇到的问题或建议…',
-                alignLabelWithHint: true,
-                prefixIcon: Icon(Icons.feedback_outlined),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _contactController,
-              decoration: const InputDecoration(
-                labelText: '联系方式（可选）',
-                hintText: 'QQ / 邮箱',
-                prefixIcon: Icon(Icons.alternate_email_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _sending ? null : _submitFeedback,
-                icon: _sending
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_rounded, size: 18),
-                label: Text(_sending ? '发送中…' : '提交反馈'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GlobalStatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _GlobalStatChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.55),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: colors.primary),
-          const SizedBox(width: 5),
-          Text(
-            '$label $value',
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

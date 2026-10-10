@@ -28,6 +28,9 @@ flutter build apk --release
 2. 在 `CHANGELOG.md` 里写一节对应版本的更新内容；
 3. 构建 APK（或推送 `v*` tag，由 GitHub Actions 构建并上传到 Release）。
 
+CI 的正式签名来自仓库 Secrets（`ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` /
+`ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD`），密钥文件不入库。
+
 > 应用内自动检查更新已移除，新版本通过仓库 Release 分发。
 
 ## 外观
