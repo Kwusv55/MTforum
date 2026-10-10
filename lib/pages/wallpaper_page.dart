@@ -145,10 +145,27 @@ class _WallpaperPageState extends State<WallpaperPage> {
                     SwitchListTile(
                       secondary: const Icon(Icons.blur_on_rounded),
                       title: const Text('液态玻璃效果'),
-                      subtitle: const Text('顶栏、底栏和评论区背景模糊，关闭可降低耗电'),
+                      subtitle: const Text('顶栏、底栏和评论区使用玻璃材质，关闭可降低耗电'),
                       value: _theme.glassEnabled,
                       onChanged: _theme.setGlassEnabled,
                     ),
+                    if (_theme.glassEnabled) ...[
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.lens_blur_rounded),
+                        title: const Text('边缘折射'),
+                        subtitle: Text(
+                          LiquidGlassShader.isAvailable
+                              ? '玻璃边缘像透镜一样弯折后面的内容，略增耗电'
+                              : '当前设备不支持，已使用磨砂效果',
+                        ),
+                        value: LiquidGlassShader.isAvailable &&
+                            _theme.refractionEnabled,
+                        onChanged: LiquidGlassShader.isAvailable
+                            ? _theme.setRefractionEnabled
+                            : null,
+                      ),
+                    ],
                     if (current != null) ...[
                       const Divider(height: 1),
                       Padding(

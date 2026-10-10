@@ -16,6 +16,7 @@ class ThemeService extends ChangeNotifier {
   static const _customFontNameKey = 'custom_font_name';
   static const _customFontFamilyKey = 'custom_font_family';
   static const _glassEnabledKey = 'glass_enabled';
+  static const _refractionEnabledKey = 'glass_refraction_enabled';
   static const _wallpaperKey = 'wallpaper_id';
   static const _wallpaperDimKey = 'wallpaper_dim';
   static const _customWallpapersKey = 'custom_wallpapers';
@@ -32,6 +33,7 @@ class ThemeService extends ChangeNotifier {
   String? _customFontName;
   String? _customFontFamily;
   bool _glassEnabled = true;
+  bool _refractionEnabled = true;
   String? _wallpaperId;
   double _wallpaperDim = 0.35;
   List<String> _customWallpapers = const [];
@@ -45,6 +47,9 @@ class ThemeService extends ChangeNotifier {
 
   /// 顶栏 / 底栏 / 评论区是否使用液态玻璃（背景模糊）效果。
   bool get glassEnabled => _glassEnabled;
+
+  /// 玻璃边缘的透镜折射（需要设备支持 Impeller 着色器，否则自动用磨砂）。
+  bool get refractionEnabled => _refractionEnabled;
 
   /// 当前壁纸：`null` 表示不使用壁纸，否则为 `preset:<id>` 或 `file:<path>`。
   String? get wallpaperId => _wallpaperId;
@@ -75,6 +80,7 @@ class ThemeService extends ChangeNotifier {
     }
 
     _glassEnabled = prefs.getBool(_glassEnabledKey) ?? true;
+    _refractionEnabled = prefs.getBool(_refractionEnabledKey) ?? true;
     _wallpaperDim =
         (prefs.getDouble(_wallpaperDimKey) ?? _wallpaperDim).clamp(0.0, 0.85);
     final customWallpapers = <String>[];
@@ -213,6 +219,15 @@ class ThemeService extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_glassEnabledKey, value);
+  }
+
+  Future<void> setRefractionEnabled(bool value) async {
+    if (_refractionEnabled == value) return;
+    _refractionEnabled = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_refractionEnabledKey, value);
   }
 
   Future<void> setWallpaper(String? id) async {

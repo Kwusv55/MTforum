@@ -35,9 +35,10 @@ CI 的正式签名来自仓库 Secrets（`ANDROID_KEYSTORE_BASE64` / `ANDROID_KE
 
 ## 外观
 
-- **液态玻璃**：顶栏、悬浮底栏、评论区弹层与输入栏使用背景模糊 + 饱和度增强 +
-  边缘高光的玻璃材质（`lib/core/widgets/liquid_glass.dart`），可在
-  设置 → 外观 中关闭。
+- **液态玻璃**：悬浮胶囊顶栏 / 底栏、评论区弹层与输入栏使用液态玻璃材质
+  （`lib/core/widgets/liquid_glass.dart`）。Impeller 设备上由
+  `shaders/liquid_glass.frag` 做边缘透镜折射，其余设备回退为磨砂模糊。
+  可在 设置 → 外观 → 背景壁纸 中关闭玻璃或单独关闭折射。
 - **背景壁纸**：设置 → 外观 → 背景壁纸，可选内置渐变壁纸或从相册导入图片，
   并调节遮罩强度保证文字可读（`lib/core/theme/wallpapers.dart`）。
 

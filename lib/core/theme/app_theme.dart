@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_color_scheme.dart';
 import 'app_elevation.dart';
@@ -24,6 +25,7 @@ abstract final class AppTheme {
   static ThemeData light({
     String? fontFamily,
     bool glass = false,
+    bool refraction = false,
     String? wallpaperId,
     double wallpaperDim = 0.35,
   }) =>
@@ -31,6 +33,7 @@ abstract final class AppTheme {
         Brightness.light,
         fontFamily: fontFamily,
         glass: glass,
+        refraction: refraction,
         wallpaperId: wallpaperId,
         wallpaperDim: wallpaperDim,
       );
@@ -38,6 +41,7 @@ abstract final class AppTheme {
   static ThemeData dark({
     String? fontFamily,
     bool glass = false,
+    bool refraction = false,
     String? wallpaperId,
     double wallpaperDim = 0.35,
   }) =>
@@ -45,6 +49,7 @@ abstract final class AppTheme {
         Brightness.dark,
         fontFamily: fontFamily,
         glass: glass,
+        refraction: refraction,
         wallpaperId: wallpaperId,
         wallpaperDim: wallpaperDim,
       );
@@ -53,6 +58,7 @@ abstract final class AppTheme {
     Brightness brightness, {
     String? fontFamily,
     bool glass = false,
+    bool refraction = false,
     String? wallpaperId,
     double wallpaperDim = 0.35,
   }) {
@@ -64,10 +70,8 @@ abstract final class AppTheme {
     final hasWallpaper = wallpaperId != null;
     final glassStyle = GlassStyle(
       enabled: glass,
-      blurSigma: 22,
+      refraction: glass && refraction,
       tint: isDark ? scheme.surfaceContainer : scheme.surface,
-      tintOpacity: isDark ? 0.62 : 0.66,
-      highlight: Colors.white.withValues(alpha: isDark ? 0.20 : 0.85),
       wallpaperId: wallpaperId,
       wallpaperDim: wallpaperDim,
     );
@@ -103,6 +107,14 @@ abstract final class AppTheme {
         scrolledUnderElevation: AppElevation.flat,
         // 玻璃模式下顶栏背景由 flexibleSpace 里的 [GlassAppBarBackground] 绘制。
         backgroundColor: glass ? Colors.transparent : scheme.surface,
+        // 顶栏背景透明时系统按透明色推算状态栏图标颜色会算错，这里显式指定。
+        systemOverlayStyle:
+            (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+                .copyWith(statusBarColor: Colors.transparent),
+        // 玻璃模式下顶栏是左右各内缩 12 的胶囊，标题和按钮跟着往里收。
+        titleSpacing: glass ? 24 : null,
+        leadingWidth: glass ? 60 : null,
+        actionsPadding: glass ? const EdgeInsets.only(right: 14) : null,
         foregroundColor: scheme.onSurface,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: textTheme.titleLarge,

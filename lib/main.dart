@@ -18,6 +18,7 @@ Future<void> main() async {
   await Future.wait([
     ApiService.instance.init(),
     ThemeService.instance.init(),
+    LiquidGlassShader.load(),
   ]);
   runApp(const MTForumApp());
 }
@@ -39,12 +40,16 @@ class MTForumApp extends StatelessWidget {
           theme: AppTheme.light(
             fontFamily: ThemeService.instance.customFontFamily,
             glass: ThemeService.instance.glassEnabled,
+            refraction: ThemeService.instance.refractionEnabled &&
+                LiquidGlassShader.isAvailable,
             wallpaperId: ThemeService.instance.wallpaperId,
             wallpaperDim: ThemeService.instance.wallpaperDim,
           ),
           darkTheme: AppTheme.dark(
             fontFamily: ThemeService.instance.customFontFamily,
             glass: ThemeService.instance.glassEnabled,
+            refraction: ThemeService.instance.refractionEnabled &&
+                LiquidGlassShader.isAvailable,
             wallpaperId: ThemeService.instance.wallpaperId,
             wallpaperDim: ThemeService.instance.wallpaperDim,
           ),
@@ -204,7 +209,19 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             ],
           );
           if (!glass) return bar;
-          return GlassNavigationShell(child: bar);
+          return GlassTabBar(
+            selectedIndex: _currentIndex,
+            onSelected: bar.onDestinationSelected!,
+            items: [
+              for (final destination
+                  in bar.destinations.cast<NavigationDestination>())
+                GlassTabItem(
+                  icon: destination.icon,
+                  selectedIcon: destination.selectedIcon ?? destination.icon,
+                  label: destination.label,
+                ),
+            ],
+          );
         },
       ),
     );

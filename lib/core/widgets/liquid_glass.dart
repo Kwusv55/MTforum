@@ -1,35 +1,52 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../theme/glass_style.dart';
 
-/// 玻璃面板需要画高光的边。
+/// 玻璃面板参与折射和高光的边。
 enum GlassEdge {
-  /// 整圈高光（悬浮胶囊、卡片）。
+  /// 整圈（悬浮胶囊）。
   all,
 
-  /// 只在顶部画高光（底部弹层）。
+  /// 只有顶边（底部弹层、贴底输入栏）。
   top,
-
-  /// 只在底部画一条分隔细线（顶栏）。
-  bottom,
 }
 
-/// 液态玻璃面板：背景模糊 + 饱和度增强 + 半透明表面色 + 边缘高光。
+/// 液态折射着色器。启动时加载一次；设备不支持（非 Impeller）或加载失败时
+/// [isAvailable] 为 false，玻璃组件自动退化为普通磨砂。
+abstract final class LiquidGlassShader {
+  static ui.FragmentProgram? _program;
+
+  static bool get isAvailable => _program != null;
+
+  static Future<void> load() async {
+    if (_program != null || !ui.ImageFilter.isShaderFilterSupported) return;
+    try {
+      _program = await ui.FragmentProgram.fromAsset(
+        'shaders/liquid_glass.frag',
+      );
+    } catch (_) {
+      _program = null;
+    }
+  }
+}
+
+/// 液态玻璃面板。
 ///
-/// 模糊的是面板**后面**已经绘制的内容（滚动列表、壁纸、上一个页面），
-/// 所以只有当内容真的从面板下方经过时才看得出玻璃感。
-///
-/// 主题里关闭玻璃效果（[GlassStyle.enabled] 为 false）时退化为不透明的
-/// [fallbackColor]，不创建 BackdropFilter，低端机上没有额外开销。
+/// 支持折射时：背景经着色器做边缘透镜折射 + 轻微模糊 + 饱和度增强，
+/// 叠半透明底色、白色亮边、内侧辉光和镜面反光。
+/// 不支持时：系统模糊 + 更浓的底色（磨砂效果）。
+/// 主题关闭玻璃时：不透明 [fallbackColor]，不创建任何背景滤镜。
 class LiquidGlass extends StatelessWidget {
   final Widget? child;
   final BorderRadius borderRadius;
   final GlassEdge edge;
 
-  /// 悬浮在内容上方的面板（底栏胶囊）加一层柔和投影。
+  /// 悬浮在内容上方的面板（顶栏、底栏胶囊）加一层柔和投影。
   final bool elevated;
 
   /// 在主题默认不透明度上再加一点，用于承载大段文字的面板（评论区）。
@@ -48,99 +65,111 @@ class LiquidGlass extends StatelessWidget {
     this.fallbackColor,
   });
 
-  static final ui.ColorFilter _saturate =
-      ui.ColorFilter.matrix(_saturationMatrix(1.6));
+  static final Map<double, ui.ColorFilter> _saturationFilters = {};
 
-  static List<double> _saturationMatrix(double s) {
-    const r = 0.2126, g = 0.7152, b = 0.0722;
-    final ir = (1 - s) * r, ig = (1 - s) * g, ib = (1 - s) * b;
-    return [
-      ir + s, ig, ib, 0, 0, //
-      ir, ig + s, ib, 0, 0, //
-      ir, ig, ib + s, 0, 0, //
-      0, 0, 0, 1, 0, //
-    ];
+  static ui.ColorFilter _saturate(double s) {
+    return _saturationFilters.putIfAbsent(s, () {
+      const r = 0.2126, g = 0.7152, b = 0.0722;
+      final ir = (1 - s) * r, ig = (1 - s) * g, ib = (1 - s) * b;
+      return ui.ColorFilter.matrix([
+        ir + s, ig, ib, 0, 0, //
+        ir, ig + s, ib, 0, 0, //
+        ir, ig, ib + s, 0, 0, //
+        0, 0, 0, 1, 0, //
+      ]);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final style = GlassStyle.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (!style.enabled) {
+      final panel = DecoratedBox(
+        decoration: BoxDecoration(
+          color: fallbackColor ?? scheme.surfaceContainerLow,
+          borderRadius: borderRadius,
+          border: edge == GlassEdge.all
+              ? Border.all(color: scheme.outlineVariant)
+              : null,
+        ),
+        child: child,
+      );
+      return ClipRRect(borderRadius: borderRadius, child: panel);
+    }
+
+    final refract = style.refraction && LiquidGlassShader.isAvailable;
+    final tint = ((refract ? style.tintOpacity : style.fallbackTintOpacity) +
+            opacityBoost)
+        .clamp(0.0, 1.0);
+
+    final body = CustomPaint(
+      foregroundPainter: _GlassDecorPainter(
+        borderRadius: borderRadius,
+        edge: edge,
+        dark: isDark,
+        rim: style.rimOpacity,
+        rimWidth: style.rimWidth,
+        glow: style.glowOpacity,
+        highlight: style.highlightOpacity,
+        specular: refract,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              style.tint.withValues(alpha: (tint + 0.06).clamp(0.0, 1.0)),
+              style.tint.withValues(alpha: (tint - 0.04).clamp(0.0, 1.0)),
+            ],
+          ),
+        ),
+        child: child,
+      ),
+    );
 
     Widget panel;
-    if (!style.enabled) {
-      panel = CustomPaint(
-        foregroundPainter: edge == GlassEdge.all
-            ? _GlassRimPainter(
-                borderRadius: borderRadius,
-                edge: edge,
-                highlight: scheme.outlineVariant,
-                divider: scheme.outlineVariant,
-                sheen: Colors.transparent,
-              )
-            : null,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: fallbackColor ?? scheme.surfaceContainerLow,
-            borderRadius: borderRadius,
-          ),
-          child: child,
-        ),
+    if (refract) {
+      panel = _RefractiveBackdrop(
+        borderRadius: borderRadius,
+        edge: edge,
+        blur: style.blur,
+        saturation: style.saturation,
+        band: style.lensBand,
+        displacement: style.lensDisplacement,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        child: body,
       );
     } else {
-      final base = (style.tintOpacity + opacityBoost).clamp(0.0, 1.0);
-      panel = BackdropFilter(
-        filter: ui.ImageFilter.compose(
-          outer: _saturate,
-          inner: ui.ImageFilter.blur(
-            sigmaX: style.blurSigma,
-            sigmaY: style.blurSigma,
-          ),
-        ),
-        child: CustomPaint(
-          foregroundPainter: _GlassRimPainter(
-            borderRadius: borderRadius,
-            edge: edge,
-            highlight: style.highlight,
-            divider: scheme.outlineVariant.withValues(alpha: 0.45),
-            sheen: Colors.white.withValues(alpha: isDark ? 0.05 : 0.16),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  style.tint.withValues(alpha: (base - 0.06).clamp(0.0, 1.0)),
-                  style.tint.withValues(alpha: (base + 0.06).clamp(0.0, 1.0)),
-                ],
-              ),
+      panel = ClipRRect(
+        borderRadius: borderRadius,
+        child: BackdropFilter(
+          filter: ui.ImageFilter.compose(
+            outer: _saturate(style.saturation),
+            inner: ui.ImageFilter.blur(
+              sigmaX: style.fallbackBlur,
+              sigmaY: style.fallbackBlur,
             ),
-            child: child,
           ),
+          child: body,
         ),
       );
     }
 
-    panel = borderRadius == BorderRadius.zero
-        ? ClipRect(child: panel)
-        : ClipRRect(borderRadius: borderRadius, child: panel);
-
     if (!elevated) return panel;
+    final shadow = style.shadowOpacity * (isDark ? 2.2 : 1);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.07),
-            blurRadius: 24,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: shadow.clamp(0.0, 1.0)),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -149,101 +178,356 @@ class LiquidGlass extends StatelessWidget {
   }
 }
 
-/// 绘制玻璃的高光边、顶部光泽和底部分隔线。
-class _GlassRimPainter extends CustomPainter {
+/// 绘制白色亮边、内侧辉光、顶部高光线和镜面反光。
+class _GlassDecorPainter extends CustomPainter {
   final BorderRadius borderRadius;
   final GlassEdge edge;
-  final Color highlight;
-  final Color divider;
-  final Color sheen;
+  final bool dark;
+  final double rim;
+  final double rimWidth;
+  final double glow;
+  final double highlight;
+  final bool specular;
 
-  const _GlassRimPainter({
+  const _GlassDecorPainter({
     required this.borderRadius,
     required this.edge,
+    required this.dark,
+    required this.rim,
+    required this.rimWidth,
+    required this.glow,
     required this.highlight,
-    required this.divider,
-    required this.sheen,
+    required this.specular,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     if (rect.isEmpty) return;
+    final w = size.width, h = size.height;
 
-    // 顶部一抹柔光，模拟光线照在玻璃表面的反射。
-    if (sheen.a > 0) {
-      canvas.drawRect(
-        rect,
+    // 深色模式下白光要收敛很多，否则发灰发雾。
+    final rimA = dark ? rim * 0.28 : rim;
+    final glowA = dark ? glow * 0.12 : glow;
+    final hlA = dark ? highlight * 0.35 : highlight;
+
+    // 只画顶边的面板（弹层、输入栏）用纵向渐变把亮边收在顶部。
+    Shader? topOnly(double stop) => edge == GlassEdge.top
+        ? LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [Colors.white, Color(0x00FFFFFF)],
+            stops: [0, stop],
+          ).createShader(rect)
+        : null;
+
+    // 镜面反光：左上一大片、右下一小片，柔光混合。
+    if (specular) {
+      void ellipse(double cx, double cy, double rx, double ry, double a) {
+        canvas.save();
+        canvas.translate(cx, cy);
+        canvas.scale(rx / ry, 1);
+        canvas.drawCircle(
+          Offset.zero,
+          ry,
+          Paint()
+            ..blendMode = BlendMode.softLight
+            ..shader = RadialGradient(
+              colors: [
+                Colors.white.withValues(alpha: a),
+                Colors.white.withValues(alpha: 0),
+              ],
+            ).createShader(Rect.fromCircle(center: Offset.zero, radius: ry)),
+        );
+        canvas.restore();
+      }
+
+      canvas.save();
+      canvas.clipRRect(borderRadius.toRRect(rect));
+      ellipse(w * 0.18, -h * 0.10, w * 0.54, h * 0.405, dark ? 0.25 : 0.55);
+      if (edge == GlassEdge.all) {
+        ellipse(w, h * 1.2, w * 0.45, h * 0.40, dark ? 0.12 : 0.25);
+      }
+      canvas.restore();
+    }
+
+    // 内侧辉光：沿边缘一圈柔和白光向内渐隐（外半圈由父级裁剪掉）。
+    if (glowA > 0) {
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+        ..color = Colors.white.withValues(alpha: glowA);
+      final shader = topOnly(0.35);
+      if (shader != null) {
+        canvas.saveLayer(rect, Paint());
+        canvas.drawRRect(borderRadius.toRRect(rect), paint);
+        canvas.drawRect(
+            rect,
+            Paint()
+              ..blendMode = BlendMode.dstIn
+              ..shader = shader);
+        canvas.restore();
+      } else {
+        canvas.save();
+        canvas.clipRRect(borderRadius.toRRect(rect));
+        canvas.drawRRect(borderRadius.toRRect(rect), paint);
+        canvas.restore();
+      }
+    }
+
+    // 顶部 1px 高光线，模拟光从上方照在玻璃边缘。
+    if (hlA > 0) {
+      final inset = rect.deflate(rimWidth + 0.5);
+      canvas.drawRRect(
+        borderRadius.toRRect(inset).shift(const Offset(0, 0.5)),
         Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [sheen, sheen.withValues(alpha: 0)],
-            stops: const [0, 0.55],
-          ).createShader(rect),
+            colors: [
+              Colors.white.withValues(alpha: hlA),
+              Colors.white.withValues(alpha: 0),
+            ],
+            stops: const [0, 0.35],
+          ).createShader(inset),
       );
     }
 
-    switch (edge) {
-      case GlassEdge.bottom:
-        canvas.drawLine(
-          Offset(0, size.height - 0.5),
-          Offset(size.width, size.height - 0.5),
-          Paint()
-            ..color = divider
-            ..strokeWidth = 1,
-        );
-      case GlassEdge.top:
-        final rim = borderRadius.toRRect(rect.deflate(0.5));
-        canvas.drawRRect(
-          rim,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1
-            ..shader = LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [highlight, highlight.withValues(alpha: 0)],
-              stops: const [0, 0.12],
-            ).createShader(rect),
-        );
-      case GlassEdge.all:
-        final rim = borderRadius.toRRect(rect.deflate(0.5));
-        canvas.drawRRect(
-          rim,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1
-            ..shader = LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                highlight,
-                highlight.withValues(alpha: highlight.a * 0.18),
-                highlight.withValues(alpha: highlight.a * 0.08),
-                highlight.withValues(alpha: highlight.a * 0.55),
-              ],
-              stops: const [0, 0.38, 0.62, 1],
-            ).createShader(rect),
-        );
+    // 白色亮边。
+    if (rimA > 0 && rimWidth > 0) {
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = rimWidth
+        ..color = Colors.white.withValues(alpha: rimA);
+      final shader = topOnly(0.12);
+      if (shader != null) {
+        paint.shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: rimA),
+            Colors.white.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.12],
+        ).createShader(rect);
+      }
+      canvas.drawRRect(
+        borderRadius.toRRect(rect.deflate(rimWidth / 2)),
+        paint,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(_GlassRimPainter oldDelegate) {
-    return oldDelegate.borderRadius != borderRadius ||
-        oldDelegate.edge != edge ||
-        oldDelegate.highlight != highlight ||
-        oldDelegate.divider != divider ||
-        oldDelegate.sheen != sheen;
+  bool shouldRepaint(_GlassDecorPainter old) {
+    return old.borderRadius != borderRadius ||
+        old.edge != edge ||
+        old.dark != dark ||
+        old.rim != rim ||
+        old.rimWidth != rimWidth ||
+        old.glow != glow ||
+        old.highlight != highlight ||
+        old.specular != specular;
   }
+}
+
+/// 用折射着色器处理自身区域的背景。
+class _RefractiveBackdrop extends SingleChildRenderObjectWidget {
+  final BorderRadius borderRadius;
+  final GlassEdge edge;
+  final double blur;
+  final double saturation;
+  final double band;
+  final double displacement;
+  final double devicePixelRatio;
+
+  const _RefractiveBackdrop({
+    required this.borderRadius,
+    required this.edge,
+    required this.blur,
+    required this.saturation,
+    required this.band,
+    required this.displacement,
+    required this.devicePixelRatio,
+    super.child,
+  });
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderRefractiveBackdrop(
+      shader: LiquidGlassShader._program!.fragmentShader(),
+    )..update(this);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderRefractiveBackdrop renderObject,
+  ) {
+    renderObject.update(this);
+  }
+}
+
+class _RenderRefractiveBackdrop extends RenderProxyBox {
+  _RenderRefractiveBackdrop({required ui.FragmentShader shader})
+      : _shader = shader;
+
+  final ui.FragmentShader _shader;
+  final _clipLayer = LayerHandle<ClipRRectLayer>();
+  final _filterLayer = LayerHandle<BackdropFilterLayer>();
+
+  BorderRadius _borderRadius = BorderRadius.zero;
+  GlassEdge _edge = GlassEdge.all;
+  double _blur = 0;
+  double _saturation = 1;
+  double _band = 0;
+  double _displacement = 0;
+  double _dpr = 1;
+
+  /// 最近一次绘制时自身在屏幕上的位置。
+  Rect? _paintedRect;
+
+  /// 页面切换、弹层滑入等移动过程中，图层被整体平移而不会重新绘制，
+  /// 着色器里的形状位置会滞后一帧。移动期间关闭折射只保留模糊，
+  /// 停稳后再打开，避免边缘错位闪烁。
+  bool _moving = false;
+
+  void update(_RefractiveBackdrop w) {
+    if (_borderRadius == w.borderRadius &&
+        _edge == w.edge &&
+        _blur == w.blur &&
+        _saturation == w.saturation &&
+        _band == w.band &&
+        _displacement == w.displacement &&
+        _dpr == w.devicePixelRatio) {
+      return;
+    }
+    _borderRadius = w.borderRadius;
+    _edge = w.edge;
+    _blur = w.blur;
+    _saturation = w.saturation;
+    _band = w.band;
+    _displacement = w.displacement;
+    _dpr = w.devicePixelRatio;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _GlassMotionTracker.add(this);
+  }
+
+  @override
+  void detach() {
+    _GlassMotionTracker.remove(this);
+    super.detach();
+  }
+
+  @override
+  void dispose() {
+    _clipLayer.layer = null;
+    _filterLayer.layer = null;
+    _shader.dispose();
+    super.dispose();
+  }
+
+  Rect _globalRect() =>
+      MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size);
+
+  void _checkMotion() {
+    final painted = _paintedRect;
+    if (!attached || !hasSize || painted == null) return;
+    final now = _globalRect();
+    if (now != painted) {
+      _moving = true;
+      markNeedsPaint();
+    } else if (_moving) {
+      _moving = false;
+      markNeedsPaint();
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final global = _globalRect();
+    _paintedRect = global;
+
+    // 只折射顶边的面板：把其余三边推到很远，SDF 在那些边上就不会产生透镜。
+    final lens = _edge == GlassEdge.top
+        ? Rect.fromLTRB(
+            global.left - 2000,
+            global.top,
+            global.right + 2000,
+            global.bottom + 2000,
+          )
+        : global;
+    final radius = _edge == GlassEdge.top ? 0.0 : _borderRadius.topLeft.x;
+    final band = math.min(_band, size.shortestSide / 2);
+    final d = _dpr;
+
+    _shader
+      ..setFloat(2, lens.left * d)
+      ..setFloat(3, lens.top * d)
+      ..setFloat(4, lens.width * d)
+      ..setFloat(5, lens.height * d)
+      ..setFloat(6, radius * d)
+      ..setFloat(7, band * d)
+      ..setFloat(8, _moving ? 0 : _displacement * d)
+      ..setFloat(9, _blur * d)
+      ..setFloat(10, _saturation);
+
+    final bounds = Offset.zero & size;
+    _clipLayer.layer = context.pushClipRRect(
+      needsCompositing,
+      offset,
+      bounds,
+      _borderRadius.toRRect(bounds),
+      (context, offset) {
+        final layer = _filterLayer.layer ??= BackdropFilterLayer();
+        layer.filter = ui.ImageFilter.shader(_shader);
+        context.pushLayer(layer, super.paint, offset);
+      },
+      oldLayer: _clipLayer.layer,
+    );
+  }
+}
+
+/// 每帧绘制完成后检查折射面板是否被移动过（见 [_RenderRefractiveBackdrop._moving]）。
+abstract final class _GlassMotionTracker {
+  static final _objects = <_RenderRefractiveBackdrop>{};
+  static bool _registered = false;
+
+  static void add(_RenderRefractiveBackdrop object) {
+    _objects.add(object);
+    if (_registered) return;
+    _registered = true;
+    SchedulerBinding.instance.addPersistentFrameCallback((_) {
+      if (_objects.isEmpty) return;
+      for (final object in _objects.toList(growable: false)) {
+        object._checkMotion();
+      }
+    });
+  }
+
+  static void remove(_RenderRefractiveBackdrop object) =>
+      _objects.remove(object);
 }
 
 /// 顶栏玻璃背景，作为 AppBar / SliverAppBar 的 `flexibleSpace` 使用。
 ///
+/// 玻璃模式下画成悬浮胶囊（左右留 12、上下留 4），内容从胶囊四周和后面
+/// 滚过；关闭玻璃时恢复为普通通栏背景。
+///
 /// `SliverAppBar.large` 传入 `flexibleSpace` 后会丢掉自带的展开大标题，
-/// 所以这里可选地接管大标题：根据 [FlexibleSpaceBarSettings] 的折叠进度
-/// 在展开区域底部绘制同样的标题。
+/// 所以 [GlassAppBarBackground.large] 接管大标题：根据
+/// [FlexibleSpaceBarSettings] 的折叠进度在展开区域底部绘制同样的标题。
 class GlassAppBarBackground extends StatelessWidget {
   final Widget? largeTitle;
 
@@ -252,24 +536,44 @@ class GlassAppBarBackground extends StatelessWidget {
   const GlassAppBarBackground.large({super.key, required Widget title})
       : largeTitle = title;
 
+  /// 胶囊离屏幕左右边缘的距离；AppBar 主题据此内缩标题和按钮。
+  static const double horizontalInset = 12;
+
   @override
   Widget build(BuildContext context) {
-    final glass = LiquidGlass(
-      edge: GlassEdge.bottom,
-      fallbackColor: Theme.of(context).colorScheme.surface,
-      child: const SizedBox.expand(),
-    );
+    final style = GlassStyle.of(context);
+    final Widget background;
+    if (style.enabled) {
+      final top = MediaQuery.paddingOf(context).top;
+      background = Padding(
+        padding: EdgeInsets.fromLTRB(
+          horizontalInset,
+          top + 4,
+          horizontalInset,
+          4,
+        ),
+        child: const LiquidGlass(
+          borderRadius: BorderRadius.all(Radius.circular(28)),
+          elevated: true,
+          child: SizedBox.expand(),
+        ),
+      );
+    } else {
+      background = ColoredBox(color: Theme.of(context).colorScheme.surface);
+    }
+
     final title = largeTitle;
     final settings =
         context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
-    if (title == null || settings == null) return glass;
+    if (title == null || settings == null) return background;
 
-    final style = AppBarTheme.of(context).titleTextStyle ??
+    final textStyle = AppBarTheme.of(context).titleTextStyle ??
         Theme.of(context).textTheme.headlineSmall;
+    final start = style.enabled ? horizontalInset + 16.0 : 16.0;
     return Stack(
       fit: StackFit.expand,
       children: [
-        glass,
+        background,
         MediaQuery.withClampedTextScaling(
           maxScaleFactor: 1.34,
           child: Column(
@@ -280,14 +584,14 @@ class GlassAppBarBackground extends StatelessWidget {
                   child: Align(
                     alignment: AlignmentDirectional.bottomStart,
                     child: Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                        16,
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                        start,
                         0,
-                        16,
+                        start,
                         28,
                       ),
                       child: DefaultTextStyle(
-                        style: style ?? const TextStyle(),
+                        style: textStyle ?? const TextStyle(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         child: title,
@@ -304,33 +608,147 @@ class GlassAppBarBackground extends StatelessWidget {
   }
 }
 
-/// 悬浮的液态玻璃胶囊底栏。
-class GlassNavigationShell extends StatelessWidget {
-  final Widget child;
+/// 底栏条目。
+class GlassTabItem {
+  final Widget icon;
+  final Widget selectedIcon;
+  final String label;
 
-  const GlassNavigationShell({super.key, required this.child});
+  const GlassTabItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+}
+
+/// 悬浮液态玻璃胶囊底栏：灰色胶囊选中指示器整块覆盖图标和文字，
+/// 切换时带一点回弹滑过去。
+class GlassTabBar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<GlassTabItem> items;
+
+  const GlassTabBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.items,
+  });
+
+  static const double height = 72;
+  static const _radius = BorderRadius.all(Radius.circular(36));
+  static const _pad = 6.0;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final ink = theme.colorScheme.onSurface;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    const radius = BorderRadius.all(Radius.circular(30));
+
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 10),
+      padding: EdgeInsets.fromLTRB(14, 0, 14, bottomInset + 12),
       child: Center(
         heightFactor: 1,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
-          child: LiquidGlass(
-            borderRadius: radius,
-            elevated: true,
-            child: MediaQuery.removePadding(
-              context: context,
-              removeBottom: true,
-              child: NavigationBarTheme(
-                data: NavigationBarTheme.of(context).copyWith(height: 64),
-                child: child,
+          child: SizedBox(
+            height: height,
+            child: LiquidGlass(
+              borderRadius: _radius,
+              elevated: true,
+              child: Padding(
+                padding: const EdgeInsets.all(_pad),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final itemWidth = constraints.maxWidth / items.length;
+                    return Stack(
+                      children: [
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 450),
+                          curve: const Cubic(0.3, 1.4, 0.4, 1),
+                          left: itemWidth * selectedIndex,
+                          top: 0,
+                          bottom: 0,
+                          width: itemWidth,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.12)
+                                  : Colors.black.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            for (var i = 0; i < items.length; i++)
+                              Expanded(
+                                child: _GlassTab(
+                                  item: items[i],
+                                  selected: i == selectedIndex,
+                                  color: ink,
+                                  onTap: () => onSelected(i),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassTab extends StatelessWidget {
+  final GlassTabItem item;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _GlassTab({
+    required this.item,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        splashColor: Colors.transparent,
+        highlightColor: color.withValues(alpha: 0.04),
+        child: IconTheme.merge(
+          data: IconThemeData(color: color, size: 25),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              selected ? item.selectedIcon : item.icon,
+              const SizedBox(height: 3),
+              Text(
+                item.label,
+                maxLines: 1,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12.5,
+                  height: 1.2,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ),
