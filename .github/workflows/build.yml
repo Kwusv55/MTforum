@@ -75,7 +75,9 @@ jobs:
           sha256sum *.apk | tee sha256.txt
           grep '^version:' ../../../../pubspec.yaml || true
 
+      # 账号的 Actions 产物额度满时上传会失败；正式包以 Release 附件为准，这里不阻断。
       - name: Upload APK artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: mtforum-release-apk
