@@ -444,7 +444,7 @@ class _BbNodeView extends StatelessWidget {
     String title = '内容预览',
   }) {
     return GlassCard(
-      grouped: false,
+      onPage: false,
       margin: const EdgeInsets.symmetric(vertical: 5),
       child: ListTile(
         dense: true,

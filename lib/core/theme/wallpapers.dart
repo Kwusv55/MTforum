@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../services/theme_service.dart';
+import '../widgets/glass_backdrop.dart';
+import '../widgets/liquid_glass.dart';
 import 'glass_style.dart';
 
 /// 内置渐变壁纸：一层线性底色 + 几团柔和的径向色块，
@@ -126,6 +128,51 @@ WallpaperPreset? findWallpaperPreset(String id) {
   return null;
 }
 
+/// 在 [rect] 里画内置渐变壁纸。页面上的壁纸和玻璃卡片的背景图都用它，
+/// 保证两者完全一致。
+void paintWallpaperPreset(Canvas canvas, Rect rect, WallpaperPreset preset) {
+  canvas.drawRect(
+    rect,
+    Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: preset.base,
+      ).createShader(rect),
+  );
+  for (final blob in preset.blobs) {
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          center: blob.center,
+          radius: blob.radius,
+          colors: [
+            blob.color.withValues(alpha: 0.85),
+            blob.color.withValues(alpha: 0),
+          ],
+        ).createShader(rect),
+    );
+  }
+}
+
+/// 整屏壁纸的解码高度（屏幕长边的物理像素）。
+int wallpaperDecodeHeight(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  return (math.max(size.width, size.height) *
+          MediaQuery.devicePixelRatioOf(context))
+      .round();
+}
+
+/// 自定义壁纸的图片来源。页面壁纸和玻璃卡片背景用同一个来源，共享解码缓存。
+ImageProvider wallpaperFileImage(String path, {required int decodeHeight}) {
+  return ResizeImage(
+    FileImage(File(path)),
+    height: decodeHeight,
+    allowUpscaling: false,
+  );
+}
+
 /// 按壁纸 id 绘制壁纸本身（不含遮罩），铺满父组件。
 class WallpaperView extends StatelessWidget {
   final String id;
@@ -142,15 +189,10 @@ class WallpaperView extends StatelessWidget {
 
     if (id.startsWith(ThemeService.fileWallpaperPrefix)) {
       final path = id.substring(ThemeService.fileWallpaperPrefix.length);
-      final media = MediaQuery.of(context);
-      final screenHeight = (math.max(media.size.width, media.size.height) *
-              media.devicePixelRatio)
-          .round();
       return Image(
-        image: ResizeImage(
-          FileImage(File(path)),
-          height: decodeHeight ?? screenHeight,
-          allowUpscaling: false,
+        image: wallpaperFileImage(
+          path,
+          decodeHeight: decodeHeight ?? wallpaperDecodeHeight(context),
         ),
         fit: BoxFit.cover,
         width: double.infinity,
@@ -174,34 +216,24 @@ class _PresetWallpaper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: preset.base,
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          for (final blob in preset.blobs)
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: blob.center,
-                  radius: blob.radius,
-                  colors: [
-                    blob.color.withValues(alpha: 0.85),
-                    blob.color.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
+    return SizedBox.expand(
+      child: CustomPaint(painter: _PresetWallpaperPainter(preset)),
     );
   }
+}
+
+class _PresetWallpaperPainter extends CustomPainter {
+  final WallpaperPreset preset;
+
+  const _PresetWallpaperPainter(this.preset);
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      paintWallpaperPreset(canvas, Offset.zero & size, preset);
+
+  @override
+  bool shouldRepaint(_PresetWallpaperPainter oldDelegate) =>
+      oldDelegate.preset != preset;
 }
 
 /// 给页面铺上当前壁纸和可读性遮罩；没有设置壁纸时原样返回 [child]。
@@ -218,31 +250,47 @@ class WallpaperBackdrop extends StatefulWidget {
 }
 
 class _WallpaperBackdropState extends State<WallpaperBackdrop> {
-  // 页面里的玻璃卡片共用一次背景读取；每个路由一组，互不串用。
-  final _backdropKey = BackdropKey();
+  // 页面里玻璃卡片的背景图，见 [GlassBackdropSource]。
+  final _source = GlassBackdropSource();
+
+  @override
+  void dispose() {
+    _source.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final style = GlassStyle.of(context);
     final id = style.wallpaperId;
-    final child = widget.child;
-    final page = style.enabled
-        ? BackdropGroup(backdropKey: _backdropKey, child: child)
-        : child;
+    final surface = Theme.of(context).colorScheme.surface;
+
+    var page = widget.child;
+    if (style.enabled) {
+      _source.update(GlassBackdropSpec(
+        wallpaperId: id,
+        surface: surface,
+        dim: style.wallpaperDim,
+        refract: style.refraction && LiquidGlassShader.isAvailable,
+        saturation: style.saturation,
+        blur: style.fallbackBlur,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        decodeHeight: wallpaperDecodeHeight(context),
+      ));
+      page = GlassBackdropScope(source: _source, child: page);
+    }
     if (id == null) return page;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        RepaintBoundary(child: WallpaperView(id: id)),
-        ColoredBox(
-          color: Theme.of(context)
-              .colorScheme
-              .surface
-              .withValues(alpha: style.wallpaperDim),
-        ),
-        page,
-      ],
+    return GlassBackdropAnchor(
+      source: _source,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          RepaintBoundary(child: WallpaperView(id: id)),
+          ColoredBox(color: surface.withValues(alpha: style.wallpaperDim)),
+          page,
+        ],
+      ),
     );
   }
 }

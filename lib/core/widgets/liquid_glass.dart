@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../theme/glass_style.dart';
+import 'glass_backdrop.dart';
 
 /// 玻璃面板参与折射和高光的边。
 enum GlassEdge {
@@ -18,19 +19,27 @@ enum GlassEdge {
 
 /// 液态折射着色器。启动时加载一次；设备不支持（非 Impeller）或加载失败时
 /// [isAvailable] 为 false，玻璃组件自动退化为普通磨砂。
+///
+/// 两个版本：[_program] 读屏幕背景（悬浮的顶栏、底栏），
+/// [_imageProgram] 从页面壁纸图取样（页面里的卡片，见 [GlassBackdropSource]）。
 abstract final class LiquidGlassShader {
   static ui.FragmentProgram? _program;
+  static ui.FragmentProgram? _imageProgram;
 
-  static bool get isAvailable => _program != null;
+  static bool get isAvailable => _program != null && _imageProgram != null;
 
   static Future<void> load() async {
-    if (_program != null || !ui.ImageFilter.isShaderFilterSupported) return;
+    if (isAvailable || !ui.ImageFilter.isShaderFilterSupported) return;
     try {
-      _program = await ui.FragmentProgram.fromAsset(
-        'shaders/liquid_glass.frag',
-      );
+      final programs = await Future.wait([
+        ui.FragmentProgram.fromAsset('shaders/liquid_glass.frag'),
+        ui.FragmentProgram.fromAsset('shaders/liquid_glass_image.frag'),
+      ]);
+      _program = programs[0];
+      _imageProgram = programs[1];
     } catch (_) {
       _program = null;
+      _imageProgram = null;
     }
   }
 }
@@ -55,10 +64,11 @@ class LiquidGlass extends StatelessWidget {
   /// 关闭玻璃效果时使用的颜色，默认 `surfaceContainerLow`。
   final Color? fallbackColor;
 
-  /// 加入最近的 [BackdropGroup]，与同组面板共用一次背景读取。
-  /// 只给互不重叠、也不嵌套在其它玻璃里的面板（页面里的卡片）用；
-  /// 悬浮在内容上方的顶栏、底栏要看到卡片，不能分组。
-  final bool grouped;
+  /// 直接放在页面上、背后只有壁纸的面板（页面里的卡片）：背景从页面预先
+  /// 画好的壁纸图里取（见 [GlassBackdropSource]），不读屏幕。
+  /// 悬浮在内容上方的顶栏、底栏，以及嵌在其它玻璃里的面板要读真实背景，
+  /// 保持 false。
+  final bool onPage;
 
   const LiquidGlass({
     super.key,
@@ -68,22 +78,21 @@ class LiquidGlass extends StatelessWidget {
     this.elevated = false,
     this.opacityBoost = 0,
     this.fallbackColor,
-    this.grouped = false,
+    this.onPage = false,
   });
 
-  static final Map<double, ui.ColorFilter> _saturationFilters = {};
-
-  static ui.ColorFilter _saturate(double s) {
-    return _saturationFilters.putIfAbsent(s, () {
-      const r = 0.2126, g = 0.7152, b = 0.0722;
-      final ir = (1 - s) * r, ig = (1 - s) * g, ib = (1 - s) * b;
-      return ui.ColorFilter.matrix([
-        ir + s, ig, ib, 0, 0, //
-        ir, ig + s, ib, 0, 0, //
-        ir, ig, ib + s, 0, 0, //
-        0, 0, 0, 1, 0, //
-      ]);
-    });
+  /// 卡片所在的所有滚动视图：滚动时卡片相对壁纸移动，要立即重画背景。
+  static Listenable? _scrollPositions(BuildContext context) {
+    final positions = <Listenable>[];
+    var scrollable = Scrollable.maybeOf(context);
+    while (scrollable != null) {
+      positions.add(scrollable.position);
+      scrollable = Scrollable.maybeOf(scrollable.context);
+    }
+    if (positions.isEmpty) return null;
+    return positions.length == 1
+        ? positions.single
+        : Listenable.merge(positions);
   }
 
   @override
@@ -138,12 +147,24 @@ class LiquidGlass extends StatelessWidget {
       ),
     );
 
-    final backdropKey = grouped ? BackdropGroup.of(context)?.backdropKey : null;
+    final source = onPage ? GlassBackdropScope.maybeOf(context) : null;
 
     Widget panel;
-    if (refract) {
+    if (source != null) {
+      panel = _WallpaperGlass(
+        source: source,
+        scroll: _scrollPositions(context),
+        borderRadius: borderRadius,
+        edge: edge,
+        blur: style.blur,
+        saturation: style.saturation,
+        band: style.lensBand,
+        displacement: style.lensDisplacement,
+        // 背景随滚动重画时，卡片里的内容不必跟着重新录制。
+        child: RepaintBoundary(child: body),
+      );
+    } else if (refract) {
       panel = _RefractiveBackdrop(
-        backdropKey: backdropKey,
         borderRadius: borderRadius,
         edge: edge,
         blur: style.blur,
@@ -157,9 +178,8 @@ class LiquidGlass extends StatelessWidget {
       panel = ClipRRect(
         borderRadius: borderRadius,
         child: BackdropFilter(
-          backdropGroupKey: backdropKey,
           filter: ui.ImageFilter.compose(
-            outer: _saturate(style.saturation),
+            outer: glassSaturationFilter(style.saturation),
             inner: ui.ImageFilter.blur(
               sigmaX: style.fallbackBlur,
               sigmaY: style.fallbackBlur,
@@ -205,8 +225,8 @@ class GlassCard extends StatelessWidget {
   /// 承载大段正文的卡片（帖子）可加一点底色，保证压在花哨壁纸上也看得清。
   final double opacityBoost;
 
-  /// 是否加入页面的 [BackdropGroup]；嵌在其它玻璃里的卡片要传 false。
-  final bool grouped;
+  /// 见 [LiquidGlass.onPage]；嵌在其它玻璃里的卡片要传 false。
+  final bool onPage;
 
   /// 传 false 时始终是普通 [Card]（已经压在玻璃弹层上的卡片）。
   final bool glass;
@@ -222,7 +242,7 @@ class GlassCard extends StatelessWidget {
     this.elevation,
     this.clipBehavior,
     this.opacityBoost = 0,
-    this.grouped = true,
+    this.onPage = true,
   });
 
   @override
@@ -268,7 +288,7 @@ class GlassCard extends StatelessWidget {
       child: LiquidGlass(
         borderRadius: borderRadius,
         opacityBoost: opacityBoost,
-        grouped: grouped,
+        onPage: onPage,
         child: content,
       ),
     );
@@ -435,7 +455,6 @@ class _GlassDecorPainter extends CustomPainter {
 
 /// 用折射着色器处理自身区域的背景。
 class _RefractiveBackdrop extends SingleChildRenderObjectWidget {
-  final BackdropKey? backdropKey;
   final BorderRadius borderRadius;
   final GlassEdge edge;
   final double blur;
@@ -445,7 +464,6 @@ class _RefractiveBackdrop extends SingleChildRenderObjectWidget {
   final double devicePixelRatio;
 
   const _RefractiveBackdrop({
-    required this.backdropKey,
     required this.borderRadius,
     required this.edge,
     required this.blur,
@@ -487,7 +505,6 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
   double _band = 0;
   double _displacement = 0;
   double _dpr = 1;
-  BackdropKey? _backdropKey;
 
   /// 最近一次绘制时自身在屏幕上的位置。
   Rect? _paintedRect;
@@ -501,10 +518,6 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
   double _settle = 1;
 
   void update(_RefractiveBackdrop w) {
-    if (_backdropKey != w.backdropKey) {
-      _backdropKey = w.backdropKey;
-      markNeedsPaint();
-    }
     if (_borderRadius == w.borderRadius &&
         _edge == w.edge &&
         _blur == w.blur &&
@@ -605,9 +618,7 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
       _borderRadius.toRRect(bounds),
       (context, offset) {
         final layer = _filterLayer.layer ??= BackdropFilterLayer();
-        layer
-          ..filter = ui.ImageFilter.shader(_shader)
-          ..backdropKey = _backdropKey;
+        layer.filter = ui.ImageFilter.shader(_shader);
         context.pushLayer(layer, super.paint, offset);
       },
       oldLayer: _clipLayer.layer,
@@ -634,6 +645,221 @@ abstract final class _GlassMotionTracker {
 
   static void remove(_RenderRefractiveBackdrop object) =>
       _objects.remove(object);
+}
+
+/// 页面卡片的背景：从 [GlassBackdropSource] 的壁纸图里取自己位置那一块，
+/// 折射模式下经壁纸采样版着色器处理，否则图里已经是磨砂效果，直接贴上。
+class _WallpaperGlass extends SingleChildRenderObjectWidget {
+  final GlassBackdropSource source;
+  final Listenable? scroll;
+  final BorderRadius borderRadius;
+  final GlassEdge edge;
+  final double blur;
+  final double saturation;
+  final double band;
+  final double displacement;
+
+  const _WallpaperGlass({
+    required this.source,
+    required this.scroll,
+    required this.borderRadius,
+    required this.edge,
+    required this.blur,
+    required this.saturation,
+    required this.band,
+    required this.displacement,
+    super.child,
+  });
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderWallpaperGlass()..update(this);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderWallpaperGlass renderObject,
+  ) {
+    renderObject.update(this);
+  }
+}
+
+class _RenderWallpaperGlass extends RenderProxyBox {
+  GlassBackdropSource? _source;
+  Listenable? _scroll;
+  BorderRadius _borderRadius = BorderRadius.zero;
+  GlassEdge _edge = GlassEdge.all;
+  double _blur = 0;
+  double _saturation = 1;
+  double _band = 0;
+  double _displacement = 0;
+
+  ui.FragmentShader? _shader;
+  final _clipLayer = LayerHandle<ClipRRectLayer>();
+
+  /// 最近一次绘制时自身在页面里的位置；位置变了背景就要重画。
+  Offset? _paintedOrigin;
+
+  void update(_WallpaperGlass w) {
+    if (!identical(_source, w.source)) {
+      if (attached) _source?.removeListener(markNeedsPaint);
+      _source = w.source;
+      if (attached) _source!.addListener(markNeedsPaint);
+      markNeedsPaint();
+    }
+    if (!identical(_scroll, w.scroll)) {
+      if (attached) _scroll?.removeListener(markNeedsPaint);
+      _scroll = w.scroll;
+      if (attached) _scroll?.addListener(markNeedsPaint);
+    }
+    if (_borderRadius == w.borderRadius &&
+        _edge == w.edge &&
+        _blur == w.blur &&
+        _saturation == w.saturation &&
+        _band == w.band &&
+        _displacement == w.displacement) {
+      return;
+    }
+    _borderRadius = w.borderRadius;
+    _edge = w.edge;
+    _blur = w.blur;
+    _saturation = w.saturation;
+    _band = w.band;
+    _displacement = w.displacement;
+    markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _source?.addListener(markNeedsPaint);
+    _scroll?.addListener(markNeedsPaint);
+    _WallpaperGlassTracker.add(this);
+  }
+
+  @override
+  void detach() {
+    _source?.removeListener(markNeedsPaint);
+    _scroll?.removeListener(markNeedsPaint);
+    _WallpaperGlassTracker.remove(this);
+    super.detach();
+  }
+
+  @override
+  void dispose() {
+    _clipLayer.layer = null;
+    _shader?.dispose();
+    super.dispose();
+  }
+
+  /// 自身左上角在页面（壁纸铺放区域）里的位置；不在该页面下时为 null。
+  Offset? _originIn(RenderBox anchor) {
+    if (!anchor.attached) return null;
+    for (RenderObject? node = parent; node != null; node = node.parent) {
+      if (identical(node, anchor)) {
+        return MatrixUtils.transformPoint(getTransformTo(anchor), Offset.zero);
+      }
+    }
+    return null;
+  }
+
+  /// 滚动以外的移动（列表插入、布局变化）不会触发重画，每帧末尾检查一次。
+  void _checkMotion() {
+    final painted = _paintedOrigin;
+    final anchor = _source?.anchor;
+    if (!attached || !hasSize || painted == null || anchor == null) return;
+    if (_originIn(anchor) != painted) markNeedsPaint();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final source = _source!;
+    final rrect = _borderRadius.toRRect(offset & size);
+    _paintedOrigin = null;
+
+    final solid = source.solid;
+    final image = source.image;
+    final anchor = source.anchor;
+    final origin = anchor == null ? null : _originIn(anchor);
+    if (solid != null) {
+      context.canvas.drawRRect(rrect, Paint()..color = solid);
+    } else if (image != null && origin != null) {
+      _paintedOrigin = origin;
+      // 画布坐标 + shift = 页面坐标。
+      final shift = origin - offset;
+      final scale = source.scale;
+      final paint = Paint();
+      if (source.refract) {
+        final lens = _edge == GlassEdge.top
+            ? Rect.fromLTRB(
+                offset.dx - 2000,
+                offset.dy,
+                offset.dx + size.width + 2000,
+                offset.dy + size.height + 2000,
+              )
+            : offset & size;
+        final shader = _shader ??=
+            LiquidGlassShader._imageProgram!.fragmentShader();
+        shader
+          ..setFloat(0, image.width.toDouble())
+          ..setFloat(1, image.height.toDouble())
+          ..setFloat(2, lens.left)
+          ..setFloat(3, lens.top)
+          ..setFloat(4, lens.width)
+          ..setFloat(5, lens.height)
+          ..setFloat(6, _edge == GlassEdge.top ? 0 : _borderRadius.topLeft.x)
+          ..setFloat(7, math.min(_band, size.shortestSide / 2))
+          ..setFloat(8, _displacement)
+          ..setFloat(9, _blur)
+          ..setFloat(10, _saturation)
+          ..setFloat(11, shift.dx)
+          ..setFloat(12, shift.dy)
+          ..setFloat(13, scale)
+          ..setImageSampler(0, image, filterQuality: FilterQuality.low);
+        paint.shader = shader;
+      } else {
+        paint.shader = ImageShader(
+          image,
+          TileMode.clamp,
+          TileMode.clamp,
+          (Matrix4.translationValues(-shift.dx, -shift.dy, 0)
+                ..scale(1 / scale, 1 / scale))
+              .storage,
+          filterQuality: FilterQuality.low,
+        );
+      }
+      context.canvas.drawRRect(rrect, paint);
+    }
+
+    final bounds = Offset.zero & size;
+    _clipLayer.layer = context.pushClipRRect(
+      needsCompositing,
+      offset,
+      bounds,
+      _borderRadius.toRRect(bounds),
+      super.paint,
+      oldLayer: _clipLayer.layer,
+    );
+  }
+}
+
+abstract final class _WallpaperGlassTracker {
+  static final _objects = <_RenderWallpaperGlass>{};
+  static bool _registered = false;
+
+  static void add(_RenderWallpaperGlass object) {
+    _objects.add(object);
+    if (_registered) return;
+    _registered = true;
+    SchedulerBinding.instance.addPersistentFrameCallback((_) {
+      if (_objects.isEmpty) return;
+      for (final object in _objects.toList(growable: false)) {
+        object._checkMotion();
+      }
+    });
+  }
+
+  static void remove(_RenderWallpaperGlass object) => _objects.remove(object);
 }
 
 /// 顶栏玻璃背景，作为 AppBar / SliverAppBar 的 `flexibleSpace` 使用。
