@@ -1,6 +1,23 @@
 part of '../../../services/api_service.dart';
 
 extension ApiServiceThreadPart on ApiService {
+  /// 帖子页 HTML 大、楼层多，放到后台 isolate 解析，打开帖子时不卡主线程。
+  /// 只传字符串和数字进去，避免把 ApiService 本身带进 isolate。
+  Future<ThreadDetail> _parseThreadDetail(
+    String body, {
+    required String tid,
+    required int page,
+    required String baseUrl,
+  }) =>
+      Isolate.run(
+        () => const ForumParser().parseThreadDetail(
+          body,
+          tid: tid,
+          page: page,
+          baseUrl: baseUrl,
+        ),
+      );
+
   Future<ThreadDetail> getThreadDetail(String tid, {int page = 1}) async {
     final response = await _dio.get<String>(
       '/thread-$tid-$page-1.html',
@@ -31,7 +48,7 @@ extension ApiServiceThreadPart on ApiService {
       throw StateError('帖子加载失败（HTTP $status）');
     }
 
-    final detail = _parser.parseThreadDetail(
+    final detail = await _parseThreadDetail(
       body,
       tid: tid,
       page: page,
@@ -104,7 +121,7 @@ extension ApiServiceThreadPart on ApiService {
       return detail;
     }
 
-    final detail = _parser.parseThreadDetail(
+    final detail = await _parseThreadDetail(
       redirectResponse.data ?? '',
       tid: tid,
       page: 1,
@@ -129,7 +146,7 @@ extension ApiServiceThreadPart on ApiService {
       throw StateError('楼层页面加载失败（HTTP $status）');
     }
     final page = int.tryParse(pageUri.queryParameters['page'] ?? '') ?? 1;
-    return _parser.parseThreadDetail(
+    return _parseThreadDetail(
       response.data ?? '',
       tid: tid,
       page: page,

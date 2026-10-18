@@ -1,5 +1,38 @@
 part of '../forum_parser.dart';
 
+/// 从引用/正文里认出「回复 xxx 的帖子」「xxx 发表于 时间」中的用户名。
+///
+/// 这几条正则带 `(?:^|\s)` 前缀和懒惰的 `.*?`，匹配不到时会在每个空白处
+/// 从头扫到结尾，长正文上是平方级耗时（实测楼主长帖单次 300ms 以上，
+/// 打开帖子时卡住主线程）。所以先用只从关键词处起步的线性检查确认片段
+/// 存在——它是原正则能匹配的必要条件，结果与直接匹配完全一致。
+final _replyNamePatterns = <_GuardedPattern>[
+  _GuardedPattern(
+    RegExp(r'(?:^|\s)回复\s+(.+?)\s+(?:的帖子|发表于)'),
+    (text) =>
+        text.contains('回复') &&
+        (text.contains('的帖子') || text.contains('发表于')),
+  ),
+  _GuardedPattern(
+    RegExp(r'(?:^|\s)([^\s].*?)\s+发表于\s+\d{4}[-/.年]'),
+    RegExp(r'\s发表于\s+\d{4}[-/.年]').hasMatch,
+  ),
+  _GuardedPattern(
+    RegExp(r'(?:^|\s)([^\s].*?)\s+发表于\s+(?:今天|昨天|前天|\d+\s*小时前)'),
+    RegExp(r'\s发表于\s+(?:今天|昨天|前天|\d+\s*小时前)').hasMatch,
+  ),
+];
+
+class _GuardedPattern {
+  final RegExp pattern;
+  final bool Function(String text) guard;
+
+  const _GuardedPattern(this.pattern, this.guard);
+
+  RegExpMatch? firstMatch(String text) =>
+      guard(text) ? pattern.firstMatch(text) : null;
+}
+
 extension ForumParserThreadDetailParserPart on ForumParser {
   ThreadDetail parseThreadDetail(
     String body, {
@@ -449,12 +482,7 @@ extension ForumParserThreadDetailParserPart on ForumParser {
         if (value.isNotEmpty) quotedText = value;
       }
 
-      final patterns = <RegExp>[
-        RegExp(r'(?:^|\s)回复\s+(.+?)\s+(?:的帖子|发表于)'),
-        RegExp(r'(?:^|\s)([^\s].*?)\s+发表于\s+\d{4}[-/.年]'),
-        RegExp(r'(?:^|\s)([^\s].*?)\s+发表于\s+(?:今天|昨天|前天|\d+\s*小时前)'),
-      ];
-      for (final pattern in patterns) {
+      for (final pattern in _replyNamePatterns) {
         if (name?.isNotEmpty == true) break;
         final match = pattern.firstMatch(quoteText);
         if (match != null) {
@@ -500,10 +528,7 @@ extension ForumParserThreadDetailParserPart on ForumParser {
 
     final plain = _cleanInline(fragment.text ?? '');
     String? rawName;
-    for (final pattern in <RegExp>[
-      RegExp(r'(?:^|\s)回复\s+(.+?)\s+(?:的帖子|发表于)'),
-      RegExp(r'(?:^|\s)([^\s].*?)\s+发表于\s+\d{4}[-/.年]'),
-    ]) {
+    for (final pattern in _replyNamePatterns.take(2)) {
       final match = pattern.firstMatch(plain);
       if (match != null) {
         final value = _cleanInline(match.group(1) ?? '');
