@@ -102,7 +102,7 @@ class GlassBackdropSource extends ChangeNotifier {
   bool _refreshScheduled = false;
   bool _disposed = false;
 
-  /// 没有壁纸时页面背景是纯色，卡片直接填这个颜色。
+  /// 没有壁纸时页面背景是纯色（此时 [image] 是这个颜色的 1×1 图，不需要对位）。
   Color? get solid => _solid;
 
   /// 「壁纸 + 遮罩」图；还没画好时为 null，卡片暂时只显示玻璃底色。
@@ -139,9 +139,16 @@ class GlassBackdropSource extends ChangeNotifier {
   }
 
   void _setSolid(Color color) {
+    if (_solid == color && _image != null) return;
     _releaseImage();
-    if (_solid == color) return;
     _solid = color;
+    // 纯色也做成 1×1 的图，卡片就和有壁纸时走同一条绘制路径。
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder).drawColor(color, BlendMode.src);
+    final picture = recorder.endRecording();
+    _image = picture.toImageSync(1, 1);
+    picture.dispose();
+    _imageScale = 1;
     notifyListeners();
   }
 
@@ -225,11 +232,8 @@ class GlassBackdropAnchor extends SingleChildRenderObjectWidget {
       _RenderBackdropAnchor(source);
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderBackdropAnchor renderObject,
-  ) {
-    renderObject.source = source;
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as _RenderBackdropAnchor).source = source;
   }
 }
 

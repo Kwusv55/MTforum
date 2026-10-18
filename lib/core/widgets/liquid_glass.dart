@@ -121,6 +121,14 @@ class LiquidGlass extends StatelessWidget {
             opacityBoost)
         .clamp(0.0, 1.0);
 
+    final tintTop = (tint + 0.06).clamp(0.0, 1.0);
+    final tintBottom = (tint - 0.04).clamp(0.0, 1.0);
+
+    final source = onPage ? GlassBackdropScope.maybeOf(context) : null;
+    // 页面卡片在着色器里一次画完底色、反光和辉光（见 liquid_glass_image.frag），
+    // 这里只留便宜的亮边和高光线。
+    final inShader = source != null && LiquidGlassShader.isAvailable;
+
     final body = CustomPaint(
       foregroundPainter: _GlassDecorPainter(
         borderRadius: borderRadius,
@@ -128,26 +136,26 @@ class LiquidGlass extends StatelessWidget {
         dark: isDark,
         rim: style.rimOpacity,
         rimWidth: style.rimWidth,
-        glow: style.glowOpacity,
+        glow: inShader ? 0 : style.glowOpacity,
         highlight: style.highlightOpacity,
-        specular: refract,
+        specular: refract && !inShader,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              style.tint.withValues(alpha: (tint + 0.06).clamp(0.0, 1.0)),
-              style.tint.withValues(alpha: (tint - 0.04).clamp(0.0, 1.0)),
-            ],
-          ),
-        ),
-        child: child,
-      ),
+      child: inShader
+          ? child
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    style.tint.withValues(alpha: tintTop),
+                    style.tint.withValues(alpha: tintBottom),
+                  ],
+                ),
+              ),
+              child: child,
+            ),
     );
-
-    final source = onPage ? GlassBackdropScope.maybeOf(context) : null;
 
     Widget panel;
     if (source != null) {
@@ -160,6 +168,18 @@ class LiquidGlass extends StatelessWidget {
         saturation: style.saturation,
         band: style.lensBand,
         displacement: style.lensDisplacement,
+        decor: inShader
+            ? _ShaderDecor(
+                tint: style.tint,
+                tintTop: tintTop,
+                tintBottom: tintBottom,
+                specularTop: refract ? (isDark ? 0.25 : 0.55) : 0,
+                specularBottom: refract && edge == GlassEdge.all
+                    ? (isDark ? 0.12 : 0.25)
+                    : 0,
+                glow: isDark ? style.glowOpacity * 0.12 : style.glowOpacity,
+              )
+            : null,
         // 背景随滚动重画时，卡片里的内容不必跟着重新录制。
         child: RepaintBoundary(child: body),
       );
@@ -647,8 +667,44 @@ abstract final class _GlassMotionTracker {
       _objects.remove(object);
 }
 
-/// 页面卡片的背景：从 [GlassBackdropSource] 的壁纸图里取自己位置那一块，
-/// 折射模式下经壁纸采样版着色器处理，否则图里已经是磨砂效果，直接贴上。
+/// 页面卡片在着色器里画的部分：底色渐变、镜面反光、内侧辉光。
+@immutable
+class _ShaderDecor {
+  final Color tint;
+  final double tintTop;
+  final double tintBottom;
+  final double specularTop;
+  final double specularBottom;
+  final double glow;
+
+  const _ShaderDecor({
+    required this.tint,
+    required this.tintTop,
+    required this.tintBottom,
+    required this.specularTop,
+    required this.specularBottom,
+    required this.glow,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ShaderDecor &&
+      other.tint == tint &&
+      other.tintTop == tintTop &&
+      other.tintBottom == tintBottom &&
+      other.specularTop == specularTop &&
+      other.specularBottom == specularBottom &&
+      other.glow == glow;
+
+  @override
+  int get hashCode => Object.hash(
+      tint, tintTop, tintBottom, specularTop, specularBottom, glow);
+}
+
+/// 页面卡片的背景：从 [GlassBackdropSource] 的壁纸图里取自己位置那一块。
+///
+/// 有 [decor] 时经壁纸采样版着色器一次画完背景、底色、反光和辉光；
+/// 没有时（设备不支持着色器）直接贴图，底色和装饰由外层组件照旧绘制。
 class _WallpaperGlass extends SingleChildRenderObjectWidget {
   final GlassBackdropSource source;
   final Listenable? scroll;
@@ -658,6 +714,7 @@ class _WallpaperGlass extends SingleChildRenderObjectWidget {
   final double saturation;
   final double band;
   final double displacement;
+  final _ShaderDecor? decor;
 
   const _WallpaperGlass({
     required this.source,
@@ -668,6 +725,7 @@ class _WallpaperGlass extends SingleChildRenderObjectWidget {
     required this.saturation,
     required this.band,
     required this.displacement,
+    required this.decor,
     super.child,
   });
 
@@ -693,6 +751,7 @@ class _RenderWallpaperGlass extends RenderProxyBox {
   double _saturation = 1;
   double _band = 0;
   double _displacement = 0;
+  _ShaderDecor? _decor;
 
   ui.FragmentShader? _shader;
   final _clipLayer = LayerHandle<ClipRRectLayer>();
@@ -717,7 +776,8 @@ class _RenderWallpaperGlass extends RenderProxyBox {
         _blur == w.blur &&
         _saturation == w.saturation &&
         _band == w.band &&
-        _displacement == w.displacement) {
+        _displacement == w.displacement &&
+        _decor == w.decor) {
       return;
     }
     _borderRadius = w.borderRadius;
@@ -726,6 +786,7 @@ class _RenderWallpaperGlass extends RenderProxyBox {
     _saturation = w.saturation;
     _band = w.band;
     _displacement = w.displacement;
+    _decor = w.decor;
     markNeedsPaint();
   }
 
@@ -771,64 +832,97 @@ class _RenderWallpaperGlass extends RenderProxyBox {
     if (_originIn(anchor) != painted) markNeedsPaint();
   }
 
+  /// 画布坐标加上它就是页面坐标；纯色背景不需要对位，返回零。
+  Offset? _shift(GlassBackdropSource source, Offset offset) {
+    _paintedOrigin = null;
+    if (source.solid != null) return Offset.zero;
+    final anchor = source.anchor;
+    final origin = anchor == null ? null : _originIn(anchor);
+    if (origin == null) return null;
+    _paintedOrigin = origin;
+    return origin - offset;
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
     final source = _source!;
-    final rrect = _borderRadius.toRRect(offset & size);
-    _paintedOrigin = null;
-
-    final solid = source.solid;
+    final rect = offset & size;
+    final rrect = _borderRadius.toRRect(rect);
     final image = source.image;
-    final anchor = source.anchor;
-    final origin = anchor == null ? null : _originIn(anchor);
-    if (solid != null) {
-      context.canvas.drawRRect(rrect, Paint()..color = solid);
-    } else if (image != null && origin != null) {
-      _paintedOrigin = origin;
-      // 画布坐标 + shift = 页面坐标。
-      final shift = origin - offset;
-      final scale = source.scale;
-      final paint = Paint();
-      if (source.refract) {
-        final lens = _edge == GlassEdge.top
-            ? Rect.fromLTRB(
-                offset.dx - 2000,
-                offset.dy,
-                offset.dx + size.width + 2000,
-                offset.dy + size.height + 2000,
-              )
-            : offset & size;
-        final shader = _shader ??=
-            LiquidGlassShader._imageProgram!.fragmentShader();
-        shader
-          ..setFloat(0, image.width.toDouble())
-          ..setFloat(1, image.height.toDouble())
-          ..setFloat(2, lens.left)
-          ..setFloat(3, lens.top)
-          ..setFloat(4, lens.width)
-          ..setFloat(5, lens.height)
-          ..setFloat(6, _edge == GlassEdge.top ? 0 : _borderRadius.topLeft.x)
-          ..setFloat(7, math.min(_band, size.shortestSide / 2))
-          ..setFloat(8, _displacement)
-          ..setFloat(9, _blur)
-          ..setFloat(10, _saturation)
-          ..setFloat(11, shift.dx)
-          ..setFloat(12, shift.dy)
-          ..setFloat(13, scale)
-          ..setImageSampler(0, image, filterQuality: FilterQuality.low);
-        paint.shader = shader;
-      } else {
-        paint.shader = ImageShader(
-          image,
-          TileMode.clamp,
-          TileMode.clamp,
-          (Matrix4.translationValues(-shift.dx, -shift.dy, 0)
-                ..scale(1 / scale, 1 / scale))
-              .storage,
-          filterQuality: FilterQuality.low,
-        );
-      }
-      context.canvas.drawRRect(rrect, paint);
+    final shift = _shift(source, offset);
+    final decor = _decor;
+
+    if (image != null && shift != null && decor != null) {
+      final refract = source.refract;
+      final lens = _edge == GlassEdge.top
+          ? Rect.fromLTRB(
+              rect.left - 2000,
+              rect.top,
+              rect.right + 2000,
+              rect.bottom + 2000,
+            )
+          : rect;
+      final shader =
+          _shader ??= LiquidGlassShader._imageProgram!.fragmentShader();
+      shader
+        ..setFloat(0, image.width.toDouble())
+        ..setFloat(1, image.height.toDouble())
+        ..setFloat(2, lens.left)
+        ..setFloat(3, lens.top)
+        ..setFloat(4, lens.width)
+        ..setFloat(5, lens.height)
+        ..setFloat(6, _edge == GlassEdge.top ? 0 : _borderRadius.topLeft.x)
+        ..setFloat(7, math.min(_band, size.shortestSide / 2))
+        // 磨砂模式的图里已经模糊、提过饱和度，着色器只负责叠装饰。
+        ..setFloat(8, refract ? _displacement : 0)
+        ..setFloat(9, refract ? _blur : 0)
+        ..setFloat(10, refract ? _saturation : 1)
+        ..setFloat(11, shift.dx)
+        ..setFloat(12, shift.dy)
+        ..setFloat(13, source.scale)
+        ..setFloat(14, rect.left)
+        ..setFloat(15, rect.top)
+        ..setFloat(16, rect.width)
+        ..setFloat(17, rect.height)
+        ..setFloat(18, decor.tint.r)
+        ..setFloat(19, decor.tint.g)
+        ..setFloat(20, decor.tint.b)
+        ..setFloat(21, decor.tintTop)
+        ..setFloat(22, decor.tintBottom)
+        ..setFloat(23, decor.specularTop)
+        ..setFloat(24, decor.specularBottom)
+        ..setFloat(25, decor.glow)
+        ..setImageSampler(0, image, filterQuality: FilterQuality.low);
+      context.canvas.drawRRect(rrect, Paint()..shader = shader);
+    } else if (image != null && shift != null) {
+      context.canvas.drawRRect(
+        rrect,
+        Paint()
+          ..shader = ImageShader(
+            image,
+            TileMode.clamp,
+            TileMode.clamp,
+            // 图片像素 → 画布：先缩放到逻辑像素，再平移回画布坐标。
+            (Matrix4.diagonal3Values(1 / source.scale, 1 / source.scale, 1)
+                  ..setTranslationRaw(-shift.dx, -shift.dy, 0))
+                .storage,
+            filterQuality: FilterQuality.low,
+          ),
+      );
+    } else if (decor != null) {
+      // 壁纸图还没画好（启动后头一两帧）：先只铺玻璃底色，免得卡片完全透明。
+      context.canvas.drawRRect(
+        rrect,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              decor.tint.withValues(alpha: decor.tintTop),
+              decor.tint.withValues(alpha: decor.tintBottom),
+            ],
+          ).createShader(rect),
+      );
     }
 
     final bounds = Offset.zero & size;
