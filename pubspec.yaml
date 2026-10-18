@@ -1,7 +1,7 @@
 name: mtforum
 description: MT论坛第三方客户端
 publish_to: 'none'
-version: 2.50.0+176
+version: 2.50.1+177
 
 environment:
   sdk: ^3.6.0
@@ -31,6 +31,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+
+# shared_preferences_android 2.5.0 改走 JNI，release 包里方法被 R8 裁掉，启动即白屏。
+dependency_overrides:
+  shared_preferences_android: 2.4.28
 
 flutter:
   uses-material-design: true

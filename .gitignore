@@ -5,6 +5,7 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 *.lock
+!pubspec.lock
 .pub-cache/
 .pub/
 ios/
