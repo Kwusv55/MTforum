@@ -440,82 +440,80 @@ class _ProfileHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: Material(
-        color: colors.surfaceContainerLow,
-        child: Stack(
-          children: [
-            if (profile.backgroundUrl != null)
-              Positioned.fill(
-                child: CachedNetworkImage(
-                  imageUrl: profile.backgroundUrl!,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            if (profile.backgroundUrl != null)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: colors.surface.withValues(alpha: 0.70),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: colors.surfaceContainerHighest,
-                    backgroundImage: profile.avatarUrl == null
-                        ? null
-                        : CachedNetworkImageProvider(profile.avatarUrl!),
-                    child: profile.avatarUrl == null
-                        ? const Icon(Icons.person_rounded, size: 34)
-                        : null,
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile.username,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 5,
-                          children: [
-                            if (profile.gender != null)
-                              _SmallTag(
-                                icon: profile.gender!.contains('女')
-                                    ? Icons.female_rounded
-                                    : profile.gender!.contains('男')
-                                        ? Icons.male_rounded
-                                        : Icons.person_outline_rounded,
-                                text: profile.gender!,
-                              ),
-                            if (profile.level != null)
-                              UserLevelBadge(text: profile.level!),
-                            if (profile.userGroup != null)
-                              UserLevelBadge(text: profile.userGroup!),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+    return GlassCard(
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      child: Stack(
+        children: [
+          if (profile.backgroundUrl != null)
+            Positioned.fill(
+              child: CachedNetworkImage(
+                imageUrl: profile.backgroundUrl!,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
-          ],
-        ),
+          if (profile.backgroundUrl != null)
+            Positioned.fill(
+              child: ColoredBox(
+                color: colors.surface.withValues(alpha: 0.70),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: colors.surfaceContainerHighest,
+                  backgroundImage: profile.avatarUrl == null
+                      ? null
+                      : CachedNetworkImageProvider(profile.avatarUrl!),
+                  child: profile.avatarUrl == null
+                      ? const Icon(Icons.person_rounded, size: 34)
+                      : null,
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 5,
+                        children: [
+                          if (profile.gender != null)
+                            _SmallTag(
+                              icon: profile.gender!.contains('女')
+                                  ? Icons.female_rounded
+                                  : profile.gender!.contains('男')
+                                      ? Icons.male_rounded
+                                      : Icons.person_outline_rounded,
+                              text: profile.gender!,
+                            ),
+                          if (profile.level != null)
+                            UserLevelBadge(text: profile.level!),
+                          if (profile.userGroup != null)
+                            UserLevelBadge(text: profile.userGroup!),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -616,9 +614,9 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Material(
+    return GlassCard(
       color: colors.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -887,9 +885,9 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Material(
+    return GlassCard(
       color: colors.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

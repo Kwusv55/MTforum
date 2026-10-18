@@ -134,7 +134,7 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   Widget _buildAuthorCard(ThemeData theme, ColorScheme colors) {
-    return Card(
+    return GlassCard(
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),

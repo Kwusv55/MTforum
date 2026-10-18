@@ -107,7 +107,7 @@ class _CommunityPageState extends State<CommunityPage> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Material(
+                      child: GlassCard(
                         color: colors.surfaceContainerLow,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),

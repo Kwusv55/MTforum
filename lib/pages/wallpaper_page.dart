@@ -139,7 +139,7 @@ class _WallpaperPageState extends State<WallpaperPage> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Card(
+              child: GlassCard(
                 child: Column(
                   children: [
                     SwitchListTile(

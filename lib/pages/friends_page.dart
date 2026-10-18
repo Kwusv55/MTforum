@@ -177,7 +177,7 @@ class _FriendsPageState extends State<FriendsPage> {
                     }
 
                     final item = _items[index];
-                    return Card(
+                    return GlassCard(
                       margin: const EdgeInsets.only(bottom: 7),
                       child: ListTile(
                         leading: CircleAvatar(

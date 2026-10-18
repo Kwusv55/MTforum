@@ -14,9 +14,9 @@ class _ProfileHero extends StatelessWidget {
         ? profile.username!.trim()
         : '未知用户';
 
-    return Material(
+    return GlassCard(
       color: colors.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
@@ -150,9 +150,9 @@ class _ProfileStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return GlassCard(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       clipBehavior: Clip.antiAlias,
       child: Row(
         children: [

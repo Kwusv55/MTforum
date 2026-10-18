@@ -287,7 +287,7 @@ class _FavoritesPageState extends State<FavoritesPage>
                       );
                     }
 
-                    return Card(
+                    return GlassCard(
                       margin: const EdgeInsets.only(bottom: 7),
                       child: ListTile(
                         leading: Icon(_iconForType(item.type)),

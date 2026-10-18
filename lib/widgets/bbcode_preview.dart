@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/smiley_catalog.dart';
+import '../core/widgets/liquid_glass.dart';
 
 /// 发帖前的本地 BBCode 预览。
 ///
@@ -442,7 +443,8 @@ class _BbNodeView extends StatelessWidget {
     String subtitle, {
     String title = '内容预览',
   }) {
-    return Card(
+    return GlassCard(
+      grouped: false,
       margin: const EdgeInsets.symmetric(vertical: 5),
       child: ListTile(
         dense: true,

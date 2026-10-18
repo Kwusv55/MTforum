@@ -154,9 +154,11 @@ class _SignRankPageState extends State<_SignRankPage>
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
-              child: Material(
+              child: GlassCard(
                 color: colors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [

@@ -70,7 +70,11 @@ class _PostCard extends StatelessWidget {
         )
         .toList(growable: false);
 
-    final card = Card(
+    final card = GlassCard(
+      // 楼中楼压在评论弹层的玻璃上，不再叠一层玻璃。
+      glass: !compactFloor,
+      glassColor: highlighted ? colors.primary.withValues(alpha: 0.10) : null,
+      opacityBoost: 0.1,
       margin: compactFloor
           ? EdgeInsets.zero
           : const EdgeInsets.only(bottom: 8),

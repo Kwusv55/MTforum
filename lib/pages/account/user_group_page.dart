@@ -92,14 +92,14 @@ class _UserGroupPageState extends State<UserGroupPage> {
           ),
           const SizedBox(height: 8),
           if (data.permissions.isEmpty)
-            const Card(
+            const GlassCard(
               child: Padding(
                 padding: EdgeInsets.all(18),
                 child: Center(child: Text('暂无权限信息')),
               ),
             )
           else
-            Card(
+            GlassCard(
               clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
@@ -136,7 +136,7 @@ class _LevelCard extends StatelessWidget {
     final colors = theme.colorScheme;
     final progress = data.progress.clamp(0.0, 1.0).toDouble();
 
-    return Card(
+    return GlassCard(
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),

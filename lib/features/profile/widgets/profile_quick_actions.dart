@@ -70,9 +70,9 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Material(
+    return GlassCard(
       color: colors.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       clipBehavior: Clip.antiAlias,
       child: Row(
         children: [
@@ -186,9 +186,9 @@ class _MenuGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Material(
+    return GlassCard(
       color: colors.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [

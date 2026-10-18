@@ -80,7 +80,7 @@ class _PromotionPageState extends State<PromotionPage> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
                   children: [
-                    Material(
+                    GlassCard(
                       color: colors.surfaceContainerLow,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(22),

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
+import '../core/widgets/liquid_glass.dart';
 
 /// 全局统一帖子列表卡片。
 ///
@@ -25,7 +26,7 @@ class ThreadCard extends StatelessWidget {
     final colors = theme.colorScheme;
     final thumbs = thread.thumbnails;
 
-    return Card(
+    return GlassCard(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

@@ -208,16 +208,28 @@ class _PresetWallpaper extends StatelessWidget {
 ///
 /// 每个路由、每个底部 Tab 各自包一层：开启壁纸后 Scaffold 背景是透明的，
 /// 如果只在最底层铺一次壁纸，页面切换动画中新旧页面会互相透出来。
-class WallpaperBackdrop extends StatelessWidget {
+class WallpaperBackdrop extends StatefulWidget {
   final Widget child;
 
   const WallpaperBackdrop({super.key, required this.child});
 
   @override
+  State<WallpaperBackdrop> createState() => _WallpaperBackdropState();
+}
+
+class _WallpaperBackdropState extends State<WallpaperBackdrop> {
+  // 页面里的玻璃卡片共用一次背景读取；每个路由一组，互不串用。
+  final _backdropKey = BackdropKey();
+
+  @override
   Widget build(BuildContext context) {
     final style = GlassStyle.of(context);
     final id = style.wallpaperId;
-    if (id == null) return child;
+    final child = widget.child;
+    final page = style.enabled
+        ? BackdropGroup(backdropKey: _backdropKey, child: child)
+        : child;
+    if (id == null) return page;
 
     return Stack(
       fit: StackFit.expand,
@@ -229,7 +241,7 @@ class WallpaperBackdrop extends StatelessWidget {
               .surface
               .withValues(alpha: style.wallpaperDim),
         ),
-        child,
+        page,
       ],
     );
   }

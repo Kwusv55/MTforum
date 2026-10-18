@@ -697,7 +697,7 @@ class _ThreadEditorPageState extends State<ThreadEditorPage> {
                         ),
                         const SizedBox(height: 10),
                       ],
-                      Card(
+                      GlassCard(
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
@@ -780,7 +780,7 @@ class _ThreadEditorPageState extends State<ThreadEditorPage> {
                             : Padding(
                                 key: ValueKey(_panel),
                                 padding: const EdgeInsets.only(top: 10),
-                                child: Card(
+                                child: GlassCard(
                                   clipBehavior: Clip.antiAlias,
                                   child: _buildPanel(context),
                                 ),

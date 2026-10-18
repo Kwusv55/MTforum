@@ -61,7 +61,7 @@ class _InvitePageState extends State<InvitePage> {
               : Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Material(
+                    child: GlassCard(
                       color: colors.surfaceContainerLow,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(22),

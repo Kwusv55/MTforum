@@ -95,7 +95,7 @@ class _PrivateMessagesPageState extends State<PrivateMessagesPage> {
                   }
 
                   final item = _items[index];
-                  return Card(
+                  return GlassCard(
                     margin: const EdgeInsets.only(bottom: 10),
                     child: ListTile(
                       dense: true,

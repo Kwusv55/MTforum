@@ -213,7 +213,7 @@ class _MallDetailPageState extends State<MallDetailPage> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Material(
+                        GlassCard(
                           color: colors.surfaceContainerLow,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -258,7 +258,7 @@ class _MallDetailPageState extends State<MallDetailPage> {
                         if (remaining != null ||
                             purchased != null ||
                             _endTime?.isNotEmpty == true)
-                          Material(
+                          GlassCard(
                             color: colors.surfaceContainerLow,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),

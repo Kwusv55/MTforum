@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 import '../widgets/app_state_view.dart';
 import 'account/user_profile_page.dart';
+import '../core/widgets/liquid_glass.dart';
 
 class RanklistPage extends StatefulWidget {
   const RanklistPage({super.key});
@@ -381,7 +382,7 @@ class _RegularRankCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return Card(
+    return GlassCard(
       margin: const EdgeInsets.only(bottom: 8),
       clipBehavior: Clip.antiAlias,
       child: ListTile(

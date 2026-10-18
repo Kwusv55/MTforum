@@ -55,6 +55,11 @@ class LiquidGlass extends StatelessWidget {
   /// 关闭玻璃效果时使用的颜色，默认 `surfaceContainerLow`。
   final Color? fallbackColor;
 
+  /// 加入最近的 [BackdropGroup]，与同组面板共用一次背景读取。
+  /// 只给互不重叠、也不嵌套在其它玻璃里的面板（页面里的卡片）用；
+  /// 悬浮在内容上方的顶栏、底栏要看到卡片，不能分组。
+  final bool grouped;
+
   const LiquidGlass({
     super.key,
     this.child,
@@ -63,6 +68,7 @@ class LiquidGlass extends StatelessWidget {
     this.elevated = false,
     this.opacityBoost = 0,
     this.fallbackColor,
+    this.grouped = false,
   });
 
   static final Map<double, ui.ColorFilter> _saturationFilters = {};
@@ -132,9 +138,12 @@ class LiquidGlass extends StatelessWidget {
       ),
     );
 
+    final backdropKey = grouped ? BackdropGroup.of(context)?.backdropKey : null;
+
     Widget panel;
     if (refract) {
       panel = _RefractiveBackdrop(
+        backdropKey: backdropKey,
         borderRadius: borderRadius,
         edge: edge,
         blur: style.blur,
@@ -148,6 +157,7 @@ class LiquidGlass extends StatelessWidget {
       panel = ClipRRect(
         borderRadius: borderRadius,
         child: BackdropFilter(
+          backdropGroupKey: backdropKey,
           filter: ui.ImageFilter.compose(
             outer: _saturate(style.saturation),
             inner: ui.ImageFilter.blur(
@@ -174,6 +184,93 @@ class LiquidGlass extends StatelessWidget {
         ],
       ),
       child: panel,
+    );
+  }
+}
+
+/// 页面里的卡片。玻璃模式下是与顶栏同款的液态玻璃面板，否则就是普通 [Card]，
+/// 参数含义与 [Card] 一致。
+///
+/// 玻璃模式下 [color] 不生效（底色由玻璃决定）；需要标出未读、高亮时用
+/// [glassColor] 在玻璃上叠一层强调色，此时 [shape] 的描边也会保留。
+class GlassCard extends StatelessWidget {
+  final Widget? child;
+  final EdgeInsetsGeometry? margin;
+  final Color? color;
+  final Color? glassColor;
+  final ShapeBorder? shape;
+  final double? elevation;
+  final Clip? clipBehavior;
+
+  /// 承载大段正文的卡片（帖子）可加一点底色，保证压在花哨壁纸上也看得清。
+  final double opacityBoost;
+
+  /// 是否加入页面的 [BackdropGroup]；嵌在其它玻璃里的卡片要传 false。
+  final bool grouped;
+
+  /// 传 false 时始终是普通 [Card]（已经压在玻璃弹层上的卡片）。
+  final bool glass;
+
+  const GlassCard({
+    super.key,
+    this.glass = true,
+    this.child,
+    this.margin,
+    this.color,
+    this.glassColor,
+    this.shape,
+    this.elevation,
+    this.clipBehavior,
+    this.opacityBoost = 0,
+    this.grouped = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!glass || !GlassStyle.of(context).enabled) {
+      return Card(
+        margin: margin,
+        color: color,
+        shape: shape,
+        elevation: elevation,
+        clipBehavior: clipBehavior,
+        child: child,
+      );
+    }
+
+    final cardTheme = CardTheme.of(context);
+    final resolved = shape ?? cardTheme.shape;
+    final borderRadius = resolved is RoundedRectangleBorder
+        ? resolved.borderRadius.resolve(Directionality.maybeOf(context))
+        : const BorderRadius.all(Radius.circular(20));
+    final side = resolved is OutlinedBorder ? resolved.side : BorderSide.none;
+    final accent = glassColor;
+
+    Widget content = Material(
+      type: MaterialType.transparency,
+      child: child,
+    );
+    if (accent != null) {
+      content = DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          border: side.style == BorderStyle.none
+              ? null
+              : Border.fromBorderSide(side),
+        ),
+        child: ColoredBox(color: accent, child: content),
+      );
+    }
+
+    return Padding(
+      padding: margin ?? cardTheme.margin ?? EdgeInsets.zero,
+      child: LiquidGlass(
+        borderRadius: borderRadius,
+        opacityBoost: opacityBoost,
+        grouped: grouped,
+        child: content,
+      ),
     );
   }
 }
@@ -242,11 +339,13 @@ class _GlassDecorPainter extends CustomPainter {
         canvas.restore();
       }
 
+      // 反光按胶囊高度设计，高的卡片只在顶部和底部各留一片同样大小的光。
+      final sh = math.min(h, 120.0);
       canvas.save();
       canvas.clipRRect(borderRadius.toRRect(rect));
-      ellipse(w * 0.18, -h * 0.10, w * 0.54, h * 0.405, dark ? 0.25 : 0.55);
+      ellipse(w * 0.18, -sh * 0.10, w * 0.54, sh * 0.405, dark ? 0.25 : 0.55);
       if (edge == GlassEdge.all) {
-        ellipse(w, h * 1.2, w * 0.45, h * 0.40, dark ? 0.12 : 0.25);
+        ellipse(w, h + sh * 0.2, w * 0.45, sh * 0.40, dark ? 0.12 : 0.25);
       }
       canvas.restore();
     }
@@ -336,6 +435,7 @@ class _GlassDecorPainter extends CustomPainter {
 
 /// 用折射着色器处理自身区域的背景。
 class _RefractiveBackdrop extends SingleChildRenderObjectWidget {
+  final BackdropKey? backdropKey;
   final BorderRadius borderRadius;
   final GlassEdge edge;
   final double blur;
@@ -345,6 +445,7 @@ class _RefractiveBackdrop extends SingleChildRenderObjectWidget {
   final double devicePixelRatio;
 
   const _RefractiveBackdrop({
+    required this.backdropKey,
     required this.borderRadius,
     required this.edge,
     required this.blur,
@@ -386,6 +487,7 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
   double _band = 0;
   double _displacement = 0;
   double _dpr = 1;
+  BackdropKey? _backdropKey;
 
   /// 最近一次绘制时自身在屏幕上的位置。
   Rect? _paintedRect;
@@ -395,7 +497,14 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
   /// 停稳后再打开，避免边缘错位闪烁。
   bool _moving = false;
 
+  /// 停稳后折射强度从 0 渐变到 1，滚动停下时边缘不会突然冒出来。
+  double _settle = 1;
+
   void update(_RefractiveBackdrop w) {
+    if (_backdropKey != w.backdropKey) {
+      _backdropKey = w.backdropKey;
+      markNeedsPaint();
+    }
     if (_borderRadius == w.borderRadius &&
         _edge == w.edge &&
         _blur == w.blur &&
@@ -447,9 +556,13 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
     final now = _globalRect();
     if (now != painted) {
       _moving = true;
+      _settle = 0;
       markNeedsPaint();
     } else if (_moving) {
       _moving = false;
+      markNeedsPaint();
+    } else if (_settle < 1) {
+      _settle = math.min(1, _settle + 0.12);
       markNeedsPaint();
     }
   }
@@ -471,6 +584,7 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
     final radius = _edge == GlassEdge.top ? 0.0 : _borderRadius.topLeft.x;
     final band = math.min(_band, size.shortestSide / 2);
     final d = _dpr;
+    final settle = Curves.easeOut.transform(_settle);
 
     _shader
       ..setFloat(2, lens.left * d)
@@ -479,7 +593,7 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
       ..setFloat(5, lens.height * d)
       ..setFloat(6, radius * d)
       ..setFloat(7, band * d)
-      ..setFloat(8, _moving ? 0 : _displacement * d)
+      ..setFloat(8, _moving ? 0 : _displacement * settle * d)
       ..setFloat(9, _blur * d)
       ..setFloat(10, _saturation);
 
@@ -491,7 +605,9 @@ class _RenderRefractiveBackdrop extends RenderProxyBox {
       _borderRadius.toRRect(bounds),
       (context, offset) {
         final layer = _filterLayer.layer ??= BackdropFilterLayer();
-        layer.filter = ui.ImageFilter.shader(_shader);
+        layer
+          ..filter = ui.ImageFilter.shader(_shader)
+          ..backdropKey = _backdropKey;
         context.pushLayer(layer, super.paint, offset);
       },
       oldLayer: _clipLayer.layer,

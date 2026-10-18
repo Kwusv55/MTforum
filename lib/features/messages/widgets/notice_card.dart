@@ -30,7 +30,7 @@ class _NoticeCard extends StatelessWidget {
         hasLocalAction || item.targetUrl != null || item.hasThreadTarget;
     final action = item.actionText.isEmpty ? item.content : item.actionText;
 
-    return Card(
+    return GlassCard(
       margin: EdgeInsets.zero,
       color: item.isUnread
           ? Color.alphaBlend(
@@ -38,6 +38,8 @@ class _NoticeCard extends StatelessWidget {
               colors.surfaceContainerLow,
             )
           : colors.surfaceContainerLow,
+      glassColor:
+          item.isUnread ? colors.primary.withValues(alpha: 0.08) : null,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: canOpen ? onOpen : null,

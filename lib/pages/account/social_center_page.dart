@@ -384,7 +384,7 @@ class _SocialListState extends State<_SocialList> {
           final busy = _followingNow.contains(user.uid);
           final followed = _followedUids.contains(user.uid);
 
-          return Card(
+          return GlassCard(
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
               leading: CircleAvatar(
@@ -608,7 +608,7 @@ class _FriendRequestListState extends State<_FriendRequestList> {
       if (item.requestTime.isNotEmpty) item.requestTime,
     ].join(' · ');
 
-    return Card(
+    return GlassCard(
       margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
       child: Padding(

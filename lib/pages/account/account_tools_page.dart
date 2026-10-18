@@ -30,7 +30,7 @@ class AccountToolsPage extends StatelessWidget {
       required VoidCallback onTap,
       Color? color,
     }) {
-      return Card(
+      return GlassCard(
         margin: const EdgeInsets.only(bottom: 7),
         child: ListTile(
           leading: Icon(icon, color: color),

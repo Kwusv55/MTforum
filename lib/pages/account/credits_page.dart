@@ -165,7 +165,7 @@ class _SummaryView extends StatelessWidget {
       IconData icon,
       Color accent,
     ) {
-      return Material(
+      return GlassCard(
         color: colors.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -311,7 +311,7 @@ class _CreditRecordList extends StatelessWidget {
               ? record.reason
               : record.raw;
 
-          return Card(
+          return GlassCard(
             margin: const EdgeInsets.only(bottom: 8),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),

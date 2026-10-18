@@ -117,7 +117,7 @@ class _RenameHero extends StatelessWidget {
         ? data.message
         : '每次改名需要消耗 $cost 金币。';
 
-    return Card(
+    return GlassCard(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -240,7 +240,7 @@ class _InfoCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
-    return Card(
+    return GlassCard(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),

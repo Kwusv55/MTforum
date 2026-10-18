@@ -171,7 +171,7 @@ class _SmsSettingsPageState extends State<SmsSettingsPage> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                   children: [
-                    Card(
+                    GlassCard(
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: _isBound
