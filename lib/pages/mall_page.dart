@@ -134,9 +134,9 @@ class _MallPageState extends State<MallPage> {
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar.large(
+            SliverAppBar(
               title: const Text('积分商城'),
-              flexibleSpace: GlassAppBarBackground.large(title: const Text('积分商城')),
+              flexibleSpace: const GlassAppBarBackground(),
               pinned: true,
               actions: [
                 IconButton(

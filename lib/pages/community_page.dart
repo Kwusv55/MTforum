@@ -68,9 +68,9 @@ class _CommunityPageState extends State<CommunityPage> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar.large(
+            SliverAppBar(
               title: const Text('社区'),
-              flexibleSpace: GlassAppBarBackground.large(title: const Text('社区')),
+              flexibleSpace: const GlassAppBarBackground(),
               pinned: true,
               actions: [
                 IconButton(

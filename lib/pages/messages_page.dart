@@ -87,9 +87,9 @@ class _MessagesPageState extends State<MessagesPage> {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                SliverAppBar.large(
+                SliverAppBar(
                   title: const Text('消息'),
-                  flexibleSpace: GlassAppBarBackground.large(title: const Text('消息')),
+                  flexibleSpace: const GlassAppBarBackground(),
                   pinned: true,
                   actions: [
                     IconButton(

@@ -50,9 +50,9 @@ class _AboutPageState extends State<AboutPage> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
+          SliverAppBar(
             title: const Text('关于'),
-            flexibleSpace: GlassAppBarBackground.large(title: const Text('关于')),
+            flexibleSpace: const GlassAppBarBackground(),
             pinned: true,
             centerTitle: true,
           ),
